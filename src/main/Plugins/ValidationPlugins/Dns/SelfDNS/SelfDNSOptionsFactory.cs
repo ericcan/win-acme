@@ -3,6 +3,7 @@ using PKISharp.WACS.Plugins.Base.Factories;
 using PKISharp.WACS.Services;
 using PKISharp.WACS.Clients.DNS;
 using DNS.Server;
+using System.Net;
 using System.Linq;
 
 namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
@@ -33,10 +34,21 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         {
             //start by pre-checking to see whether lookup works by starting a server
             //and then doing a lookup for a test record or just seeing whether the event fires.
-            testDNSRecords.AddTextResourceRecord("_acme-challenge.testdomain.org", "", "custom TXTrecord");
+            var testDomain = "_acme-challenge.testdomain.org";
+            var testTXT = "custom TXTrecord";
+            testDNSRecords.AddTextResourceRecord(testDomain, "", testTXT);
             server.Listen();
-            var testResponse = _dnsClient.GetClient("35.161.180.230").GetTextRecordValues("_acme -challenge.testdomain.org").First();
-            if (testResponse == "custom TXTrecord")
+            string testResponse = "";
+            try
+            {
+                string externalip = new WebClient().DownloadString("http://icanhazip.com");
+                IPAddress serverIP = IPAddress.Parse(externalip);
+
+                _log.Information("Checking that port 53 is open...");
+                 testResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(testDomain).First();
+            }
+            catch { }
+            if (testResponse == testTXT)
             {
                 _log.Information("Port 53 appears to be opened correctly");
             } else { 
