@@ -35,7 +35,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             //and then doing a lookup for a test record or just seeing whether the event fires.
             testDNSRecords.AddTextResourceRecord("_acme-challenge.testdomain.org", "", "custom TXTrecord");
             server.Listen();
-            var testResponse = _dnsClient.DefaultClient.GetTextRecordValues("_acme-challenge.testdomain.org").First();
+            var testResponse = _dnsClient.GetClient("35.161.180.230").GetTextRecordValues("_acme -challenge.testdomain.org").First();
             if (testResponse == "custom TXTrecord")
             {
                 _log.Information("Port 53 appears to be opened correctly");
