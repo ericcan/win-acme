@@ -23,8 +23,8 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             server = new DnsServer(masterFile, "8.8.8.8");
             server.Responded += (sender, e) => 
             {
-                _log.Information("DNS Server received lookup request" );
-                _log.Debug("DNS Response: " + e.Request.ToString());
+                _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString() );
+                _log.Debug("DNS Request: " + e.Request.ToString());
                 _log.Debug("DNS Response: " + e.Response.ToString());
             };
             server.Listening += (sender, e) => _log.Information("DNS Server is listening on Port 53. Make sure your firewall has opened this port");
@@ -35,53 +35,24 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                 if (responseError != null) _log.Debug(responseError.Response.ToString());
             };
         }
-
-        public override void CreateRecord(string recordName, string token)
-        {
-            masterFile.AddTextResourceRecord(recordName, "", token);
-            masterFile.AddNameServerResourceRecord(recordName, "aws.candell.org"); //need to replace with user parameter
-        }
         public override void PrepareChallenge()
         {
             CreateRecord(_challenge.DnsRecordName, _challenge.DnsRecordValue);
             _log.Information("Validation token added to DNS Server TXT for {answerUri}", _challenge.DnsRecordName);
             server.Listen();
 
-            PreValidate();
+            PreValidate(false);
+        }
+        public override void CreateRecord(string recordName, string token)
+        {
+            masterFile.AddTextResourceRecord(recordName, "", token);
+            masterFile.AddNameServerResourceRecord(recordName, "aws.candell.org"); //need to replace with user parameter
         }
         public override void DeleteRecord(string recordName, string token)
         {
             server.Dispose();
             _log.Information("DNS Server terminated from Port 53");
         }
-        protected new bool PreValidate()
-        {
-            try
-            {
-                var domainName = _challenge.DnsRecordName;
-                LookupClientWrapper dnsClient;
-                dnsClient = _dnsClientProvider.GetClient(domainName);
 
-                var tokens = dnsClient.GetTextRecordValues(_challenge.DnsRecordName).ToList();
-                if (tokens.Contains(_challenge.DnsRecordValue))
-                {
-                    _log.Information("Preliminary validation succeeded: {ExpectedTxtRecord} found in {TxtRecords}", _challenge.DnsRecordValue, String.Join(", ", tokens));
-                    return true;
-                }
-                else if (!tokens.Any())
-                {
-                    _log.Warning("Preliminary validation failed: no TXT records found");
-                }
-                else
-                {
-                    _log.Warning("Preliminary validation failed: {ExpectedTxtRecord} not found in {TxtRecords}", _challenge.DnsRecordValue, String.Join(", ", tokens));
-                }
-            }
-            catch (Exception ex)
-            {
-                _log.Error(ex, "Preliminary validation failed");
-            }
-            return false;
-        }
     }
 }

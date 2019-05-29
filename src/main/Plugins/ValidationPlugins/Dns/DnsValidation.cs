@@ -55,10 +55,15 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins
             }
         }
 
-        protected bool PreValidate()
+        protected bool PreValidate(Boolean useRoot=true)
         {
             try
             {
+                var domainName = _dnsClientProvider.DefaultClient.GetRootDomain(_challenge.DnsRecordName);
+                if (!useRoot)
+                {
+                    domainName = _challenge.DnsRecordName;
+                }
                 LookupClientWrapper dnsClient;
                 if (IPAddress.TryParse(Properties.Settings.Default.DnsServer, out IPAddress overrideNameServerIp))
                 {
