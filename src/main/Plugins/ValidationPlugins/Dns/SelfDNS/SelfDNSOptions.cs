@@ -7,7 +7,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
     class SelfDNSOptions : ValidationPluginOptions<SelfDNS>
     {
         public override string Name => "SelfDNS";
-        public override string Description => "Create Temporary DNS Server";
+        public override string Description => "Selfhost Temporary DNS Server";
         public override string ChallengeType { get => Constants.Dns01ChallengeType; }
     }
 }
