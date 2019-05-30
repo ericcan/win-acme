@@ -108,7 +108,7 @@
       <HintPath>..\packages\Costura.Fody.3.3.1\lib\net40\Costura.dll</HintPath>
     </Reference>
     <Reference Include="DNS">
-      <HintPath>..\..\..\dns\DNS\bin\Release\netstandard2.0\DNS.dll</HintPath>
+      <HintPath>..\packages\DNSAcme.5.0.1\lib\netstandard2.0\DNS.dll</HintPath>
     </Reference>
     <Reference Include="DnsClient, Version=1.2.0.0, Culture=neutral, PublicKeyToken=4574bb5573c51424, processorArchitecture=MSIL">
       <HintPath>..\packages\DnsClient.1.2.0\lib\net471\DnsClient.dll</HintPath>
