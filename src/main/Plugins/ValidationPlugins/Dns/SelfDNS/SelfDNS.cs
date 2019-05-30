@@ -24,8 +24,17 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             server.Responded += (sender, e) => 
             {
                 _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString() );
-                _log.Debug("DNS Request: " + e.Request.ToString());
-                _log.Debug("DNS Response: " + e.Response.ToString());
+                var questions = e.Request.Questions;
+                foreach (var question in questions)
+                {
+                    _log.Debug("DNS Request: " + question.ToString());
+                }
+                var answers = e.Response.AnswerRecords;
+                foreach (var answer in answers)
+                {
+                    _log.Debug("DNS Response: " + answer.ToString());
+                }
+              //  _log.Debug("DNS Response: " + e.Response.ToString());
             };
             server.Listening += (sender, e) => _log.Information("DNS Server listening...");
             server.Errored += (sender, e) =>

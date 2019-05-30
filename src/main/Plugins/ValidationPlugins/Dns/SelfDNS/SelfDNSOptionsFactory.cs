@@ -5,6 +5,7 @@ using PKISharp.WACS.Clients.DNS;
 using DNS.Server;
 using System.Net;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 {
@@ -27,8 +28,16 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             {
                 _reqReceived = true;
                 _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString());
-                _log.Debug("DNS Request: " + e.Request.ToString());
-                _log.Debug("DNS Response: " + e.Response.ToString());
+                var questions = e.Request.Questions;
+                foreach (var question in questions)
+                {
+                    _log.Debug("DNS Request: " + question.ToString());
+                }
+                var answers = e.Response.AnswerRecords;
+                foreach (var answer in answers)
+                {
+                    _log.Debug("DNS Response: " + answer.ToString());
+                }
             };
         }
 
@@ -36,11 +45,6 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         {
             //start by pre-checking to see whether lookup works by starting a server
             //and then doing a lookup for a test record or just seeing whether the event fires.
-            var testDomain = "_acme-challenge.testdomain.org";
-            var testTXT = "custom TXTrecord";
-            testDNSRecords.AddTextResourceRecord(testDomain, "", testTXT);
-            server.Listen();
-            string testResponse = "";
 
             var identifiers = target.Parts.SelectMany(x => x.Identifiers);
             identifiers = identifiers.Select( x  =>  x.Replace("*.", "")  ).Distinct();
@@ -53,27 +57,42 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                 _input.Show("NS", identifier);
             }
             _log.Information("Each NS record should point to this server's name (you will need to create an A record for this server)");
-            IPAddress serverIP;
+            //test for existence of an open port and working DNS server
+            IPAddress serverIP=IPAddress.Parse("8.8.8.8");
+            string externalip = "";
+            try
+            {
+                externalip = new WebClient().DownloadString("http://icanhazip.com").Replace("\n", "");
+                serverIP = IPAddress.Parse(externalip);
+            }
+            catch
+            {
+                _log.Error("couldn't get server's external IP address");
+            }
+            //publish a test record and query to see if it can be found
+            var testDomain = "_acme-challenge.testdomain.org";
+            var testTXT = "custom TXTrecord";
+            testDNSRecords.AddTextResourceRecord(testDomain, "", testTXT);
+            var testResponse = new List<string>();
+            server.Listen();
             while (true)
             {
-                try
-                {
 
-                string externalip = new WebClient().DownloadString("http://icanhazip.com").Replace("\n","");
-                serverIP = IPAddress.Parse(externalip);
 
                 _log.Information("Checking that port 53 is open on {IP}...",externalip);
-                 testResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(testDomain).First();
-            }
-            catch { }
-                if (testResponse == testTXT)
+                testResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(testDomain).ToList();
+                if (testResponse.Any())
                 {
-                    _log.Information("Port 53 appears to be open and the DNS server is operating correctly");
-                    break;
+                    if (testResponse.First() == testTXT)
+                    {
+                        _log.Information("Port 53 appears to be open and the DNS server is operating correctly");
+                        break;
+                    }
                 }
                 else
                 {
-                   if(! _input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?",false) ){
+                    if (!_input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?", false))
+                    {
                         break;
                     }
                 }
