@@ -3,15 +3,13 @@ using PKISharp.WACS.Services;
 using System.Linq;
 using System;
 using System.Net;
-using DNS.Server;
-using DNS.Client;
+using DNS.Server.Acme;
 
 namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 {
     class SelfDNS : DnsValidation<SelfDNSOptions, SelfDNS>
     {
-        private MasterFile DNSRecords;
-        private DnsServer selfDnsServer;
+        private DnsServerAcme selfDnsServer;
         public SelfDNS(
             LookupClientProvider dnsClient,
             ILogService log,
@@ -23,29 +21,8 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         public override void PrepareChallenge()
         {
             //setup for temporary DNS Server
-            DNSRecords = new MasterFile();
-            selfDnsServer = new DnsServer(DNSRecords, "8.8.8.8");
-            selfDnsServer.Responded += (sender, e) =>
-            {
-                _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString());
-                var questions = e.Request.Questions;
-                foreach (var question in questions)
-                {
-                    _log.Debug("DNS Request: " + question.ToString());
-                }
-                var answers = e.Response.AnswerRecords;
-                foreach (var answer in answers)
-                {
-                    _log.Debug("DNS Response: " + answer.ToString());
-                }
-            };
-            selfDnsServer.Listening += (sender, e) => _log.Information("DNS Server listening...");
-            selfDnsServer.Errored += (sender, e) =>
-            {
-                _log.Debug("Errored: {Error}", e.Exception);
-                ResponseException responseError = e.Exception as ResponseException;
-                if (responseError != null) _log.Debug(responseError.Response.ToString());
-            };
+            selfDnsServer = new DnsServerAcme(_log);
+
             CreateRecord(_challenge.DnsRecordName, _challenge.DnsRecordValue);
             selfDnsServer.Listen();
 
@@ -53,7 +30,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         }
         public override void CreateRecord(string recordName, string token)
         {
-            DNSRecords.AddTextResourceRecord(recordName, "", token);
+           selfDnsServer.AddRecord(recordName, token);
             _log.Information("Validation TXT {token} added to DNS Server {answerUri}", token, recordName);
         }
         public override void DeleteRecord(string recordName, string token)

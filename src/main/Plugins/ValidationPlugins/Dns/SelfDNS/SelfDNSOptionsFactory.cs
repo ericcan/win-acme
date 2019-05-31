@@ -2,10 +2,9 @@
 using PKISharp.WACS.Plugins.Base.Factories;
 using PKISharp.WACS.Services;
 using PKISharp.WACS.Clients.DNS;
-using DNS.Server;
+using DNS.Server.Acme;
 using System.Net;
 using System.Linq;
-using System.Collections.Generic;
 
 namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 {
@@ -23,8 +22,6 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 
         public override SelfDNSOptions Aquire(Target target, IArgumentsService arguments, IInputService inputService, RunLevel runLevel)
         {
-            MasterFile testDNSRecords=new MasterFile();
-            bool _reqReceived;
             const string testTXT = "custom TXTrecord";
 
             //find external IP address
@@ -51,28 +48,16 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             foreach (var identifier in identifiers)
             {
                 _log.Information("   NS for {identifier} ", identifier);
-                //create a test DNS record for each identifier
-                testDNSRecords.AddTextResourceRecord(identifier, "", testTXT);
             }
-            _log.Information("Each NS record should point to this server's name (from step 2)");
+            _log.Information("Note: Each NS record should point to this server's name (from step 2)");
 
-            using (DnsServer server = new DnsServer(testDNSRecords, "8.8.8.8"))
+            using (DnsServerAcme server = new DnsServerAcme(_log))
             {
-                server.Responded += (sender, e) =>
+                foreach (var identifier in identifiers)
                 {
-                    _reqReceived = true;
-                    _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString());
-                    var questions = e.Request.Questions;
-                    foreach (var question in questions)
-                    {
-                        _log.Debug("DNS Request: " + question.ToString());
-                    }
-                    var answers = e.Response.AnswerRecords;
-                    foreach (var answer in answers)
-                    {
-                        _log.Debug("DNS Response: " + answer.ToString());
-                    }
-                };
+                    //create a test DNS record for each identifier
+                    server.AddRecord(identifier, testTXT);
+                }
 
                 //start by pre-checking to see whether lookup works by starting a server
                 //and then doing a lookup for a test record or just seeing whether the event fires.
@@ -87,7 +72,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                         var TXTResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(identifiers.First()).ToList();
                         if (TXTResponse.Any() && TXTResponse.First() == testTXT)
                         {
-                            _log.Information("Port 53 appears to be open and the DNS server is operating correctly");
+                            _log.Information("Port 53 is open and the DNS server is operating correctly");
                             break;
                         }
                     }
@@ -104,7 +89,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                         int failCount = identifiers.Count();
                         foreach (var identifier in identifiers)
                         {
-                            _reqReceived = false;
+                            server.reqReceived = false;
                             _log.Information("Checking NS record setup for {identifier}", identifier);
                             var TXTResponse = _dnsClient.DefaultClient.GetTextRecordValues(identifier);
                             if (TXTResponse.Contains(testTXT))
@@ -116,7 +101,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                             {
                                 _log.Warning("TXT record found for {identifier} but it appears to be coming from a different DNS server. Check the NS record", identifier);
                             }
-                            else if (_reqReceived)
+                            else if (server.reqReceived)
                             {
                                 _log.Warning("A DNS request was received but may have the wrong domain name. Check your NS record");
                             }
@@ -125,13 +110,17 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                                 _log.Warning("No request was received by the DNS server");
                             }
                         }
-                        if (failCount == 0) break;
+                        if (failCount == 0)
+                        {
+                            _log.Information("Your NS records are working correctly");
+                            break;
+                        }
                     }
                     catch
                     {
                         _log.Error("An error occurred while checking records");
                     }
-                } while (_input.PromptYesNo("Would you like to test the DNS entries again?", false));
+                } while (_input.PromptYesNo("Some of your NS entries were not working. Would you like to test the DNS entries again?", false));
             }
             return new SelfDNSOptions();            
         }

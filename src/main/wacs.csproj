@@ -441,6 +441,7 @@
     <Compile Include="Plugins\ValidationPlugins\Dns\Manual\ManualOptionsFactory.cs" />
     <Compile Include="Plugins\ValidationPlugins\Dns\Script\ScriptArguments.cs" />
     <Compile Include="Plugins\ValidationPlugins\Dns\Script\ScriptArgumentsProvider.cs" />
+    <Compile Include="Plugins\ValidationPlugins\Dns\SelfDNS\DnsServerAcme\DnsServerAcme.cs" />
     <Compile Include="Plugins\ValidationPlugins\Dns\SelfDNS\SelfDNS.cs" />
     <Compile Include="Plugins\ValidationPlugins\Dns\SelfDNS\SelfDNSOptions.cs" />
     <Compile Include="Plugins\ValidationPlugins\Dns\SelfDNS\SelfDNSOptionsFactory.cs" />
