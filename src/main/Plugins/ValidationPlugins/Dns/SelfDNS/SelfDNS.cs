@@ -1,7 +1,6 @@
 ﻿using PKISharp.WACS.Clients.DNS;
 using PKISharp.WACS.Services;
 using System.Linq;
-using System.Threading.Tasks;
 using System;
 using System.Net;
 using DNS.Server;
@@ -12,7 +11,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
     class SelfDNS : DnsValidation<SelfDNSOptions, SelfDNS>
     {
         private MasterFile DNSRecords;
-        private DnsServer server;
+        private DnsServer selfDnsServer;
         public SelfDNS(
             LookupClientProvider dnsClient,
             ILogService log,
@@ -20,11 +19,15 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             identifier) :
             base(dnsClient, log, options, identifier)
         {
+        }
+        public override void PrepareChallenge()
+        {
+            //setup for temporary DNS Server
             DNSRecords = new MasterFile();
-            server = new DnsServer(DNSRecords, "8.8.8.8");
-            server.Responded += (sender, e) => 
+            selfDnsServer = new DnsServer(DNSRecords, "8.8.8.8");
+            selfDnsServer.Responded += (sender, e) =>
             {
-                _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString() );
+                _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString());
                 var questions = e.Request.Questions;
                 foreach (var question in questions)
                 {
@@ -35,33 +38,32 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                 {
                     _log.Debug("DNS Response: " + answer.ToString());
                 }
-              //  _log.Debug("DNS Response: " + e.Response.ToString());
             };
-            server.Listening += (sender, e) => _log.Information("DNS Server listening...");
-            server.Errored += (sender, e) =>
+            selfDnsServer.Listening += (sender, e) => _log.Information("DNS Server listening...");
+            selfDnsServer.Errored += (sender, e) =>
             {
                 _log.Debug("Errored: {Error}", e.Exception);
                 ResponseException responseError = e.Exception as ResponseException;
                 if (responseError != null) _log.Debug(responseError.Response.ToString());
             };
-        }
-        public override void PrepareChallenge()
-        {
             CreateRecord(_challenge.DnsRecordName, _challenge.DnsRecordValue);
-            _log.Information("Validation TXT {token} added to DNS Server {answerUri}", _challenge.DnsRecordValue, _challenge.DnsRecordName);
-            server.Listen();
+            selfDnsServer.Listen();
 
             PreValidate();
         }
         public override void CreateRecord(string recordName, string token)
         {
             DNSRecords.AddTextResourceRecord(recordName, "", token);
+            _log.Information("Validation TXT {token} added to DNS Server {answerUri}", token, recordName);
         }
         public override void DeleteRecord(string recordName, string token)
-        {
-            server.Dispose();
+        {          
         }
-
+        public override void CleanUp()
+        {
+            selfDnsServer.Dispose();
+            base.CleanUp();
+        }
         protected new bool PreValidate()
         {
             try
