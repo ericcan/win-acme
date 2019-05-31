@@ -43,8 +43,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             _log.Information(" 3. You have created the following records with your domain host's DNS manager:");
 
             var identifiers = target.Parts.SelectMany(x => x.Identifiers);
-            identifiers = identifiers.Select(x => x.Replace("*.", "")).Distinct();
-            identifiers = identifiers.Select(x => x = "_acme-challenge." + x);
+            identifiers = identifiers.Select(x => x.Replace("*.", "").Insert(0,"_acme-challenge.")).Distinct();
             foreach (var identifier in identifiers)
             {
                 _log.Information("   NS for {identifier} ", identifier);
@@ -120,7 +119,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                     {
                         _log.Error("An error occurred while checking records");
                     }
-                } while (_input.PromptYesNo("Some of your NS entries were not working. Would you like to test the DNS entries again?", false));
+                } while (_input.PromptYesNo("Some of your NS entries are not working. Would you like to test the DNS entries again?", false));
             }
             return new SelfDNSOptions();            
         }
