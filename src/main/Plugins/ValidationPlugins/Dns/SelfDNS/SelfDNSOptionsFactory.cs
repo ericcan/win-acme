@@ -17,11 +17,12 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         private DnsServer server;
         private bool _reqReceived;
 
-        public SelfDNSOptionsFactory( ILogService log, LookupClientProvider dnsClient,
-            IInputService input) : base(log, Constants.Dns01ChallengeType) {
+        public SelfDNSOptionsFactory(ILogService log, LookupClientProvider dnsClient,
+            IInputService input) : base(log, Constants.Dns01ChallengeType)
+        {
             _dnsClient = dnsClient;
             _input = input;
- 
+
             testDNSRecords = new MasterFile();
             server = new DnsServer(testDNSRecords, "8.8.8.8");
             server.Responded += (sender, e) =>
@@ -47,8 +48,8 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             //and then doing a lookup for a test record or just seeing whether the event fires.
 
             var identifiers = target.Parts.SelectMany(x => x.Identifiers);
-            identifiers = identifiers.Select( x  =>  x.Replace("*.", "")  ).Distinct();
-            identifiers = identifiers.Select(x => x="_acme-challenge."+x);
+            identifiers = identifiers.Select(x => x.Replace("*.", "")).Distinct();
+            identifiers = identifiers.Select(x => x = "_acme-challenge." + x);
             _log.Information("To set up self-hosted DNS validation, ensure the following:");
             _log.Information("--You have opened port 53 in your firewall for incoming requests");
             _log.Information("--You have created the following records with your domain host's DNS manager:");
@@ -58,7 +59,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             }
             _log.Information("Each NS record should point to this server's name (you will need to create an A record for this server)");
             //test for existence of an open port and working DNS server
-            IPAddress serverIP=IPAddress.Parse("8.8.8.8");
+            IPAddress serverIP = IPAddress.Parse("8.8.8.8");
             string externalip = "";
             try
             {
@@ -77,17 +78,12 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             server.Listen();
             while (true)
             {
-
-
-                _log.Information("Checking that port 53 is open on {IP}...",externalip);
+                _log.Information("Checking that port 53 is open on {IP}...", externalip);
                 testResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(testDomain).ToList();
-                if (testResponse.Any())
+                if (testResponse.Any() && testResponse.First() == testTXT)
                 {
-                    if (testResponse.First() == testTXT)
-                    {
-                        _log.Information("Port 53 appears to be open and the DNS server is operating correctly");
-                        break;
-                    }
+                    _log.Information("Port 53 appears to be open and the DNS server is operating correctly");
+                    break;
                 }
                 else
                 {
@@ -99,7 +95,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             }
             while (true)
             {
-                int failCount=identifiers.Count();
+                int failCount = identifiers.Count();
                 foreach (var identifier in identifiers)
                 {
                     _reqReceived = false;
@@ -125,7 +121,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                     }
                 }
                 if (failCount == 0) break;
-                if (!_input.PromptYesNo("Would you like to test the DNS entries again?",false)) break;
+                if (!_input.PromptYesNo("Would you like to test the DNS entries again?", false)) break;
             }
             server.Dispose();
             return new SelfDNSOptions();
