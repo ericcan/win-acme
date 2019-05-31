@@ -13,52 +13,21 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
     {
         private readonly LookupClientProvider _dnsClient;
         private readonly IInputService _input;
-        private MasterFile testDNSRecords;
-        private DnsServer server;
-        private bool _reqReceived;
 
         public SelfDNSOptionsFactory(ILogService log, LookupClientProvider dnsClient,
             IInputService input) : base(log, Constants.Dns01ChallengeType)
         {
             _dnsClient = dnsClient;
             _input = input;
-
-            testDNSRecords = new MasterFile();
-            server = new DnsServer(testDNSRecords, "8.8.8.8");
-            server.Responded += (sender, e) =>
-            {
-                _reqReceived = true;
-                _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString());
-                var questions = e.Request.Questions;
-                foreach (var question in questions)
-                {
-                    _log.Debug("DNS Request: " + question.ToString());
-                }
-                var answers = e.Response.AnswerRecords;
-                foreach (var answer in answers)
-                {
-                    _log.Debug("DNS Response: " + answer.ToString());
-                }
-            };
         }
 
         public override SelfDNSOptions Aquire(Target target, IArgumentsService arguments, IInputService inputService, RunLevel runLevel)
         {
-            //start by pre-checking to see whether lookup works by starting a server
-            //and then doing a lookup for a test record or just seeing whether the event fires.
+            MasterFile testDNSRecords=new MasterFile();
+            bool _reqReceived;
+            const string testTXT = "custom TXTrecord";
 
-            var identifiers = target.Parts.SelectMany(x => x.Identifiers);
-            identifiers = identifiers.Select(x => x.Replace("*.", "")).Distinct();
-            identifiers = identifiers.Select(x => x = "_acme-challenge." + x);
-            _log.Information("To set up self-hosted DNS validation, ensure the following:");
-            _log.Information("--You have opened port 53 in your firewall for incoming requests");
-            _log.Information("--You have created the following records with your domain host's DNS manager:");
-            foreach (var identifier in identifiers)
-            {
-                _input.Show("NS", identifier);
-            }
-            _log.Information("Each NS record should point to this server's name (you will need to create an A record for this server)");
-            //test for existence of an open port and working DNS server
+            //find external IP address
             IPAddress serverIP = IPAddress.Parse("8.8.8.8");
             string externalip = "";
             try
@@ -70,63 +39,102 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             {
                 _log.Error("couldn't get server's external IP address");
             }
-            //publish a test record and query to see if it can be found
-            var testDomain = "_acme-challenge.testdomain.org";
-            var testTXT = "custom TXTrecord";
-            testDNSRecords.AddTextResourceRecord(testDomain, "", testTXT);
-            var testResponse = new List<string>();
-            server.Listen();
-            while (true)
-            {
-                _log.Information("Checking that port 53 is open on {IP}...", externalip);
-                testResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(testDomain).ToList();
-                if (testResponse.Any() && testResponse.First() == testTXT)
-                {
-                    _log.Information("Port 53 appears to be open and the DNS server is operating correctly");
-                    break;
-                }
-                else
-                {
-                    if (!_input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?", false))
-                    {
-                        break;
-                    }
-                }
-            }
-            while (true)
-            {
-                int failCount = identifiers.Count();
-                foreach (var identifier in identifiers)
-                {
-                    _reqReceived = false;
-                    testDNSRecords.AddTextResourceRecord(identifier, "", testTXT);
-                    _log.Information("Checking NS record setup for {identifier}", identifier);
-                    var TXTRes = _dnsClient.DefaultClient.GetTextRecordValues(identifier);
-                    if (TXTRes.Contains(testTXT))
-                    {
-                        _log.Information("Found {identifier}", identifier);
-                        failCount -= 1;
-                    }
-                    else if (TXTRes.Any())
-                    {
-                        _log.Warning("TXT record found for {identifier} but it appears to coming from a different DNS server. Check the NS record", identifier);
-                    }
-                    else if (_reqReceived)
-                    {
-                        _log.Warning("A DNS request was received but may have the wrong domain name. Check your NS record");
-                    }
-                    else
-                    {
-                        _log.Warning("No request was received by the DNS server");
-                    }
-                }
-                if (failCount == 0) break;
-                if (!_input.PromptYesNo("Would you like to test the DNS entries again?", false)) break;
-            }
-            server.Dispose();
-            return new SelfDNSOptions();
-        }
 
+            _log.Information("To set up self-hosted DNS validation, ensure the following three steps:");
+            _log.Information(" 1. You have opened port 53 in your firewall for incoming requests");
+            _log.Information(" 2. You have created a DNS A record that points to this server ({IP})", externalip);
+            _log.Information(" 3. You have created the following records with your domain host's DNS manager:");
+
+            var identifiers = target.Parts.SelectMany(x => x.Identifiers);
+            identifiers = identifiers.Select(x => x.Replace("*.", "")).Distinct();
+            identifiers = identifiers.Select(x => x = "_acme-challenge." + x);
+            foreach (var identifier in identifiers)
+            {
+                _log.Information("   NS for {identifier} ", identifier);
+                //create a test DNS record for each identifier
+                testDNSRecords.AddTextResourceRecord(identifier, "", testTXT);
+            }
+            _log.Information("Each NS record should point to this server's name (from step 2)");
+
+            using (DnsServer server = new DnsServer(testDNSRecords, "8.8.8.8"))
+            {
+                server.Responded += (sender, e) =>
+                {
+                    _reqReceived = true;
+                    _log.Information("DNS Server received lookup request from {remote}", e.Remote.Address.ToString());
+                    var questions = e.Request.Questions;
+                    foreach (var question in questions)
+                    {
+                        _log.Debug("DNS Request: " + question.ToString());
+                    }
+                    var answers = e.Response.AnswerRecords;
+                    foreach (var answer in answers)
+                    {
+                        _log.Debug("DNS Response: " + answer.ToString());
+                    }
+                };
+
+                //start by pre-checking to see whether lookup works by starting a server
+                //and then doing a lookup for a test record or just seeing whether the event fires.
+                server.Listen();
+                do
+                {
+                    try
+                    {
+                        //use the test server as the name server to check the first identifier
+                        //this should work even if the NS record is not yet set up in the DNS zone
+                        _log.Information("Checking that port 53 is open on {IP}...", externalip);
+                        var TXTResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(identifiers.First()).ToList();
+                        if (TXTResponse.Any() && TXTResponse.First() == testTXT)
+                        {
+                            _log.Information("Port 53 appears to be open and the DNS server is operating correctly");
+                            break;
+                        }
+                    }
+                    catch
+                    {
+                        _log.Error("An error occurred checking port 53");
+                    }
+                } while (_input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?", false));
+
+                do
+                {
+                    try
+                    {
+                        int failCount = identifiers.Count();
+                        foreach (var identifier in identifiers)
+                        {
+                            _reqReceived = false;
+                            _log.Information("Checking NS record setup for {identifier}", identifier);
+                            var TXTResponse = _dnsClient.DefaultClient.GetTextRecordValues(identifier);
+                            if (TXTResponse.Contains(testTXT))
+                            {
+                                _log.Information("Successful lookup for {identifier}", identifier);
+                                failCount -= 1;
+                            }
+                            else if (TXTResponse.Any())
+                            {
+                                _log.Warning("TXT record found for {identifier} but it appears to be coming from a different DNS server. Check the NS record", identifier);
+                            }
+                            else if (_reqReceived)
+                            {
+                                _log.Warning("A DNS request was received but may have the wrong domain name. Check your NS record");
+                            }
+                            else
+                            {
+                                _log.Warning("No request was received by the DNS server");
+                            }
+                        }
+                        if (failCount == 0) break;
+                    }
+                    catch
+                    {
+                        _log.Error("An error occurred while checking records");
+                    }
+                } while (_input.PromptYesNo("Would you like to test the DNS entries again?", false));
+            }
+            return new SelfDNSOptions();            
+        }
         public override SelfDNSOptions Default(Target target, IArgumentsService arguments)
         {
             return new SelfDNSOptions();
