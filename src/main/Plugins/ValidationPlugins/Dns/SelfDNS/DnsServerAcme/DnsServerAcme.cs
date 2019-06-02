@@ -43,33 +43,14 @@ namespace DNS.Server.Acme {
         {
             DNSRecords.AddTextResourceRecord(recordName, "", token);
         }
-        public void Listen()
+        public async void Listen()
         {
-            selfDnsServer.Listen();
+            await selfDnsServer.Listen();
         }
 
         public void Dispose()
         {
-            this.Dispose(true);
-            GC.SuppressFinalize(this);
-
-        }
-        private bool disposed = false;
-        protected virtual void Dispose(bool disposing)
-        {
-            // Check to see if Dispose has already been called.
-            if (!this.disposed)
-            {
-                // If disposing equals true, dispose all managed
-                // and unmanaged resources.
-                if (disposing)
-                {
-                    // Dispose managed resources.
-                    selfDnsServer.Dispose();
-                }
-                // Note disposing has been done.
-                disposed = true;
-            }
+            selfDnsServer.Dispose();
         }
     }
 }
