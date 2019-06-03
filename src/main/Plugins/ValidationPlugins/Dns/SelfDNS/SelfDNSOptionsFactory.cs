@@ -61,6 +61,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                 //start by pre-checking to see whether lookup works by starting a server
                 //and then doing a lookup for a test record or just seeing whether the event fires.
                 server.Listen();
+                bool retry = false;
                 do
                 {
                     try
@@ -79,7 +80,8 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                     {
                         _log.Error("An error occurred checking port 53");
                     }
-                } while (_input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?", false));
+                    retry = _input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?", false);
+                } while (retry);
 
                 do
                 {
@@ -119,7 +121,8 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                     {
                         _log.Error("An error occurred while checking records");
                     }
-                } while (_input.PromptYesNo("Some of your NS entries are not working. Would you like to test the DNS entries again?", false));
+                    retry = _input.PromptYesNo("Some of your NS entries are not working. Would you like to test the DNS entries again?", false);
+                } while (retry);
             }
             return new SelfDNSOptions();            
         }
