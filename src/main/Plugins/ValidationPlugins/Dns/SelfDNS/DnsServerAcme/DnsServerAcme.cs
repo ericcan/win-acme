@@ -1,21 +1,27 @@
 ﻿using System;
 using DNS.Client;
 using PKISharp.WACS.Services;
-
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using DNS.Protocol;
+using DNS.Protocol.ResourceRecords;
+using DNS.Client.RequestResolver;
 
 namespace DNS.Server.Acme {
     class DnsServerAcme : IDisposable
     {
-        private MasterFile DNSRecords;
+        private AcmeTXTRecs DNSRecords;
         private DnsServer selfDnsServer;
         private ILogService _log;
         public bool reqReceived = false;
         public DnsServerAcme(ILogService log)
         {
             _log = log;
-            //initialization here
-            DNSRecords = new MasterFile();
-            selfDnsServer = new DnsServer(DNSRecords, "8.8.8.8");
+            //initialization here for DNS Server events and record storage
+            DNSRecords = new AcmeTXTRecs();
+            selfDnsServer = new DnsServer(DNSRecords);
             selfDnsServer.Responded += (sender, e) =>
             {
                 reqReceived = true;
@@ -39,9 +45,10 @@ namespace DNS.Server.Acme {
                 if (responseError != null) _log.Debug(responseError.Response.ToString());
             };
         }
+        //Addrecord adds a TXT record to the DNS Server
         public void AddRecord(string recordName, string token)
         {
-            DNSRecords.AddTextResourceRecord(recordName, "", token);
+            DNSRecords.AddTextResourceRecord(recordName, token);
         }
         public async void Listen()
         {
@@ -51,6 +58,79 @@ namespace DNS.Server.Acme {
         public void Dispose()
         {
             selfDnsServer.Dispose();
+        }
+    }
+
+    //AcmeTxtRecs implements IRequestResolver, the database of DNS records used by DnsServer.
+    //The standard implementation had two problems for letsencrypt: it didn't handle the mixed-
+    //case requests that letsencrypt performed. And it assumed an attribute value name that prevented matching.
+    //this version only supports TXT records.
+    public class AcmeTXTRecs : IRequestResolver
+    {
+        private static readonly TimeSpan DEFAULT_TTL = new TimeSpan(0);
+
+        private static bool Matches(Domain domain, Domain entry)
+        {
+            string[] labels = entry.ToString().Split('.');
+            string[] patterns = new string[labels.Length];
+
+            for (int i = 0; i < labels.Length; i++)
+            {
+                string label = labels[i];
+                patterns[i] = label == "*" ? "(\\w+)" : Regex.Escape(label);
+            }
+
+            Regex re = new Regex("^" + string.Join("\\.", patterns) + "$", RegexOptions.IgnoreCase);
+            return re.IsMatch(domain.ToString());
+        }
+
+        private static void Merge<T>(IList<T> l1, IList<T> l2)
+        {
+            foreach (T obj in l2)
+            {
+                l1.Add(obj);
+            }
+        }
+
+        private IList<IResourceRecord> entries = new List<IResourceRecord>();
+        private TimeSpan ttl = DEFAULT_TTL;
+
+        public AcmeTXTRecs() { }
+
+        public void Add(IResourceRecord entry)
+        {
+            entries.Add(entry);
+        }
+
+        public void AddTextResourceRecord(string domain, string token)
+        {
+            Add(new TextResourceRecord(new Domain(domain), CharacterString.FromString($"{token}"), ttl));
+        }
+
+        public Task<IResponse> Resolve(IRequest request)
+        {
+            IResponse response = Response.FromRequest(request);
+
+            foreach (Question question in request.Questions)
+            {
+                IList<IResourceRecord> answers = Get(question.Name,question.Type);
+
+                if (answers.Count > 0)
+                {
+                    Merge(response.AnswerRecords, answers);
+                }
+                else
+                {
+                    response.ResponseCode = ResponseCode.NameError;
+                }
+            }
+
+            return Task.FromResult(response);
+        }
+
+        private IList<IResourceRecord> Get(Domain domain, RecordType type)
+        {
+            return entries.Where(e => Matches(domain, e.Name) && e.Type == type).ToList();
         }
     }
 }
