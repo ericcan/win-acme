@@ -55,11 +55,10 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins
             }
         }
 
-        protected bool PreValidate(bool useDefault=false)
+        protected bool PreValidate()
         {
             try
             {
-                var domainName = _dnsClientProvider.DefaultClient.GetRootDomain(_challenge.DnsRecordName);
                 LookupClientWrapper dnsClient;
                 if (IPAddress.TryParse(Properties.Settings.Default.DnsServer, out IPAddress overrideNameServerIp))
                 {
@@ -69,7 +68,6 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins
                 else
                 {
                     dnsClient = _dnsClientProvider.GetClient(_challenge.DnsRecordName);
-                    if (useDefault) dnsClient = _dnsClientProvider.DefaultClient;
                 }
                 if (dnsClient.LookupClient.UseRandomNameServer)
                 {

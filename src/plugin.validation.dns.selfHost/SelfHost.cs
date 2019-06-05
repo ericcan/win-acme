@@ -1,6 +1,8 @@
 ﻿using PKISharp.WACS.Clients.DNS;
 using PKISharp.WACS.Services;
 using DNS.Server.Acme;
+using System.Linq;
+using System;
 
 namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 {
@@ -23,7 +25,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             CreateRecord(_challenge.DnsRecordName, _challenge.DnsRecordValue);
             selfDnsServer.Listen();
 
-            PreValidate(true);
+            PreValidate();
         }
         public override void CreateRecord(string recordName, string token)
         {
@@ -37,6 +39,35 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         {
             selfDnsServer.Dispose();
             base.CleanUp();
+        }
+        protected new bool PreValidate()
+        {
+            try
+            {
+                LookupClientWrapper dnsClient;
+
+                dnsClient = _dnsClientProvider.DefaultClient;
+
+                var tokens = dnsClient.GetTextRecordValues(_challenge.DnsRecordName).ToList();
+                if (tokens.Contains(_challenge.DnsRecordValue))
+                {
+                    _log.Information("Preliminary validation succeeded: {ExpectedTxtRecord} found in {TxtRecords}", _challenge.DnsRecordValue, String.Join(", ", tokens));
+                    return true;
+                }
+                else if (!tokens.Any())
+                {
+                    _log.Warning("Preliminary validation failed: no TXT records found");
+                }
+                else
+                {
+                    _log.Warning("Preliminary validation failed: {ExpectedTxtRecord} not found in {TxtRecords}", _challenge.DnsRecordValue, String.Join(", ", tokens));
+                }
+            }
+            catch
+            {
+                _log.Error("Preliminary validation failed");
+            }
+            return false;
         }
     }
 }

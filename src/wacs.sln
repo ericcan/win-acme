@@ -18,6 +18,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		..\appveyor.yml = ..\appveyor.yml
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wacs.validation.dns.selfHost", "plugin.validation.dns.selfHost\wacs.validation.dns.selfHost.csproj", "{98D0B358-3C58-4E1F-932E-9054446FC633}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{091C269E-368C-4535-B40A-81C091FEFC8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{091C269E-368C-4535-B40A-81C091FEFC8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{091C269E-368C-4535-B40A-81C091FEFC8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98D0B358-3C58-4E1F-932E-9054446FC633}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98D0B358-3C58-4E1F-932E-9054446FC633}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98D0B358-3C58-4E1F-932E-9054446FC633}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98D0B358-3C58-4E1F-932E-9054446FC633}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
