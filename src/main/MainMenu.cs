@@ -52,6 +52,7 @@ namespace PKISharp.WACS
                 Choice.Create<Action>(() => TestEmail(), "Test email notification", "E"),
                 Choice.Create<Action>(() => UpdateAccount(RunLevel.Interactive), "ACME account details", "A"),
                 Choice.Create<Action>(() => Import(RunLevel.Interactive), "Import scheduled renewals from WACS/LEWS 1.9.x", "I"),
+                Choice.Create<Action>(() => Migrate(RunLevel.Interactive), "Export data to migrate to new machine", "M"),
                 Choice.Create<Action>(() => { }, "Back", "Q", true)
             };
             _input.ChooseFromList("Please choose from the menu", options).Invoke();
@@ -70,6 +71,7 @@ namespace PKISharp.WACS
                                                     ConsoleColor.Green : 
                                                 ConsoleColor.Red),
                 "Back");
+                   
             if (renewal != null)
             {
                 try
@@ -78,7 +80,7 @@ namespace PKISharp.WACS
                     _input.Show("Id", renewal.Id);
                     _input.Show("File", $"{renewal.Id}.renewal.json");
                     _input.Show("FriendlyName", string.IsNullOrEmpty(renewal.FriendlyName) ? $"[Auto] {renewal.LastFriendlyName}" : renewal.FriendlyName);
-                    var pfxPW = renewal.PfxPassword;
+                    string pfxPW = renewal.PfxPassword;
                     if (pfxPW == null) pfxPW = "Couldn't unprotect PFX password";
                     _input.Show(".pfx password", pfxPW);
                     _input.Show("Renewal due", renewal.Date.ToUserString());
@@ -197,7 +199,7 @@ namespace PKISharp.WACS
         }
 
         /// <summary>
-        /// Cancel all renewals
+        /// Load renewals from 1.9.x
         /// </summary>
         private void Import(RunLevel runLevel)
         {
@@ -216,7 +218,20 @@ namespace PKISharp.WACS
                 importer.Import();
             }
         }
+        /// <summary>
+        /// Export all machine-dependent information for Migration to new machine
+        /// </summary>
+        private void Migrate(RunLevel runLevel)
+        {            
+            foreach (var r in _renewalService.Renewals)
+            {
+                _log.Information("Renew pw {pw}", r.PfxPassword);                
+            }
+            _renewalService.Export();
 
+            var acmeClient = _container.Resolve<AcmeClient>();
+            acmeClient.ExportSigner();
+        }
         /// <summary>
         /// Check/update account information
         /// </summary>

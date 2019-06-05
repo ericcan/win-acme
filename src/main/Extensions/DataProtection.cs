@@ -15,6 +15,7 @@ namespace PKISharp.WACS.Extensions
     public static class DataProtectionExtensions
     {
         private const string Prefix = "enc-";
+        private const string unprPrefix = "unp-";
 
         public static string Protect(
             this string clearText,
@@ -46,7 +47,8 @@ namespace PKISharp.WACS.Extensions
         {
             if (encryptedText == null)
                 return null;
-
+            if (encryptedText.StartsWith(unprPrefix))
+                return encryptedText.Substring(unprPrefix.Length);
             byte[] clearBytes = null;
             if (encryptedText.StartsWith(Prefix))
             {

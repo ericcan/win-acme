@@ -79,6 +79,17 @@ namespace PKISharp.WACS.Services
             Renewals = renewals;
         }
 
+        public void Export()
+        {
+            var renewals = Renewals.ToList();
+            foreach (Renewal r in renewals)
+            {
+                r.PfxPasswordProtected = "unp-" + r.PfxPassword;
+                r.Updated = true;
+                _log.Information("Unprotecting password for {friendlyName}", r.LastFriendlyName);
+            }
+            Renewals = renewals;
+        }
         public IEnumerable<Renewal> Renewals
         {
             get => ReadRenewals();

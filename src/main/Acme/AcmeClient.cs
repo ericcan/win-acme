@@ -229,8 +229,15 @@ namespace PKISharp.WACS.Acme
                 _log.Debug("Saving signer to {SignerPath}", SignerPath);
                 File.WriteAllText(SignerPath, JsonConvert.SerializeObject(value).Protect());
             }
-        }
 
+        }
+        internal void ExportSigner()
+        {
+            var signer = AccountSigner;
+            File.WriteAllText(SignerPath, "unp-" + JsonConvert.SerializeObject(signer));
+            _log.Information("Signer saved in unprotected for for migration");
+
+        }
         #endregion
 
         internal IChallengeValidationDetails DecodeChallengeValidation(Authorization auth, Challenge challenge)
