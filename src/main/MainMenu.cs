@@ -52,7 +52,7 @@ namespace PKISharp.WACS
                 Choice.Create<Action>(() => TestEmail(), "Test email notification", "E"),
                 Choice.Create<Action>(() => UpdateAccount(RunLevel.Interactive), "ACME account details", "A"),
                 Choice.Create<Action>(() => Import(RunLevel.Interactive), "Import scheduled renewals from WACS/LEWS 1.9.x", "I"),
-                Choice.Create<Action>(() => Migrate(RunLevel.Interactive), "Export data to migrate to new machine", "M"),
+                Choice.Create<Action>(() => Migrate(RunLevel.Interactive), "Export/Import data to migrate to new machine", "M"),
                 Choice.Create<Action>(() => { }, "Back", "Q", true)
             };
             _input.ChooseFromList("Please choose from the menu", options).Invoke();
@@ -71,7 +71,7 @@ namespace PKISharp.WACS
                                                     ConsoleColor.Green : 
                                                 ConsoleColor.Red),
                 "Back");
-                   
+
             if (renewal != null)
             {
                 try
@@ -222,15 +222,42 @@ namespace PKISharp.WACS
         /// Export all machine-dependent information for Migration to new machine
         /// </summary>
         private void Migrate(RunLevel runLevel)
-        {            
+        {
+            var settings = _container.Resolve<ISettingsService>();
+            _log.Information("To move your installation of win-acme to another machine, you will want");
+            _log.Information("to copy the data directory's files to the new machine. However, some of the");
+            _log.Information("files contain protected data that depends on the current machine. You can");
+            _log.Information("use these tools to unprotect your data. Once it is on the new machine, you can");
+            _log.Information("reprotect it. This data includes passwords for your certificates and a key used");
+            _log.Information("for signing requests for new certificates.");
+            _log.Information("Data directory: {settings}", settings.ConfigPath);
+            var options = new List<Choice<int>>
+            {
+                Choice.Create<int>(1, "Un-protect passwords (before migration)", "1", false),
+                Choice.Create<int>(2, "Protect passwords (after migration)", "2", false),
+                Choice.Create<int>(3, "Back", "Q", true)
+            };
+            int option = _input.ChooseFromList("Pick a direction", options);
             foreach (var r in _renewalService.Renewals)
             {
-                _log.Information("Renew pw {pw}", r.PfxPassword);                
+                _log.Information("Renew pw {pw}", r.PfxPassword);
             }
-            _renewalService.Export();
+            if (option == 1)
+            {
+                _renewalService.Export(true);
 
-            var acmeClient = _container.Resolve<AcmeClient>();
-            acmeClient.ExportSigner();
+                var acmeClient = _container.Resolve<AcmeClient>();
+                acmeClient.ExportSigner(true);
+                _log.Information("You may now transfer your win-acme data to a new machine.");
+                _log.Information("Once you have transfered the files, run this step again to re-protect");
+            }
+            if (option == 2)
+            {
+                _renewalService.Export(false);
+
+                var acmeClient = _container.Resolve<AcmeClient>();
+                acmeClient.ExportSigner(false);
+            }
         }
         /// <summary>
         /// Check/update account information

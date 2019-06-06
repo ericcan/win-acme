@@ -231,12 +231,18 @@ namespace PKISharp.WACS.Acme
             }
 
         }
-        internal void ExportSigner()
+        internal void ExportSigner(bool machineFree)
         {
             var signer = AccountSigner;
-            File.WriteAllText(SignerPath, "unp-" + JsonConvert.SerializeObject(signer));
-            _log.Information("Signer saved in unprotected for for migration");
 
+            if (machineFree)
+            {
+                File.WriteAllText(SignerPath,  JsonConvert.SerializeObject(signer).Protect(machineFree: true));
+                _log.Information("Signer saved in unprotected form for migration");
+            } else
+            {
+                AccountSigner = signer;
+            }
         }
         #endregion
 

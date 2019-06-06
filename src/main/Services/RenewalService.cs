@@ -79,14 +79,14 @@ namespace PKISharp.WACS.Services
             Renewals = renewals;
         }
 
-        public void Export()
+        public void Export(bool machineFree)
         {
             var renewals = Renewals.ToList();
             foreach (Renewal r in renewals)
             {
-                r.PfxPasswordProtected = "unp-" + r.PfxPassword;
+                r.PfxPasswordProtected = r.PfxPassword.Protect(machineFree: machineFree);
                 r.Updated = true;
-                _log.Information("Unprotecting password for {friendlyName}", r.LastFriendlyName);
+                _log.Information("{dir} password for {friendlyName}", machineFree == true ? "Unprotected":"Protected", r.LastFriendlyName);
             }
             Renewals = renewals;
         }

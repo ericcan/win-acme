@@ -15,18 +15,18 @@ namespace PKISharp.WACS.Extensions
     public static class DataProtectionExtensions
     {
         private const string Prefix = "enc-";
-        private const string unprPrefix = "unp-";
 
         public static string Protect(
             this string clearText,
             string optionalEntropy = null,
-            DataProtectionScope scope = DataProtectionScope.LocalMachine)
+            DataProtectionScope scope = DataProtectionScope.LocalMachine,
+            bool machineFree=false)
         {
             if (clearText == null)
                 return null;
 
             byte[] clearBytes = Encoding.UTF8.GetBytes(clearText);
-            if (Properties.Settings.Default.EncryptConfig)
+            if (Properties.Settings.Default.EncryptConfig && !machineFree)
             {
                 byte[] entropyBytes = string.IsNullOrEmpty(optionalEntropy)
                     ? null
@@ -47,8 +47,6 @@ namespace PKISharp.WACS.Extensions
         {
             if (encryptedText == null)
                 return null;
-            if (encryptedText.StartsWith(unprPrefix))
-                return encryptedText.Substring(unprPrefix.Length);
             byte[] clearBytes = null;
             if (encryptedText.StartsWith(Prefix))
             {
