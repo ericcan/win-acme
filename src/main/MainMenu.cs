@@ -80,8 +80,16 @@ namespace PKISharp.WACS
                     _input.Show("Id", renewal.Id);
                     _input.Show("File", $"{renewal.Id}.renewal.json");
                     _input.Show("FriendlyName", string.IsNullOrEmpty(renewal.FriendlyName) ? $"[Auto] {renewal.LastFriendlyName}" : renewal.FriendlyName);
-                    string pfxPW = renewal.PfxPassword;
-                    if (pfxPW == null) pfxPW = "Couldn't unprotect PFX password";
+                    string pfxPW = null;
+                    try
+                    { 
+                        pfxPW = renewal.PfxPassword;
+                    }
+                    catch
+                    {
+                        pfxPW = "Couldn't unprotect PFX password";
+                        _log.Error("Password unprotected failed, likely due to encryption on a different machine.");
+                    }
                     _input.Show(".pfx password", pfxPW);
                     _input.Show("Renewal due", renewal.Date.ToUserString());
                     _input.Show("Renewed", $"{renewal.History.Count} times");
@@ -224,27 +232,24 @@ namespace PKISharp.WACS
         private void Migrate(RunLevel runLevel)
         {
             var settings = _container.Resolve<ISettingsService>();
-            _log.Information("To move your installation of win-acme to another machine, you will want");
-            _log.Information("to copy the data directory's files to the new machine. However, some of the");
-            _log.Information("files contain protected data that depends on the current machine. You can");
-            _log.Information("use these tools to unprotect your data. Once it is on the new machine, you can");
-            _log.Information("reprotect it. This data includes passwords for your certificates and a key used");
-            _log.Information("for signing requests for new certificates.");
+            _log.Information("To move your installation of win-acme to another machine, you will want " +
+            "to copy the data directory's files to the new machine. However, if you use the Encrypted Configuration option, your renewal files " +
+            "files contain protected data that is dependent on your local machine. You can " +
+            "use these tools to temporarily unprotect your data before moving from the old machine. Once you copy the files, you can " +
+            "reprotect it. This data includes passwords for your certificates, other passwords, and a key used " +
+            "for signing requests for new certificates.");
             _log.Information("Data directory: {settings}", settings.ConfigPath);
             var options = new List<Choice<int>>
             {
                 Choice.Create<int>(1, "Un-protect passwords (before migration)", "1", false),
-                Choice.Create<int>(2, "Protect passwords (after migration)", "2", false),
+                Choice.Create<int>(2, "Re-Protect passwords (after migration)", "2", false),
                 Choice.Create<int>(3, "Back", "Q", true)
             };
-            int option = _input.ChooseFromList("Pick a direction", options);
+            int option = _input.ChooseFromList("Choose an option", options);
             foreach (var r in _renewalService.Renewals)
-            {
-                _log.Information("Renew pw {pw}", r.PfxPassword);
-            }
             if (option == 1)
             {
-                _renewalService.Export(true);
+                _renewalService.Export(machineFree: true);
 
                 var acmeClient = _container.Resolve<AcmeClient>();
                 acmeClient.ExportSigner(true);
@@ -253,7 +258,7 @@ namespace PKISharp.WACS
             }
             if (option == 2)
             {
-                _renewalService.Export(false);
+                _renewalService.Export(machineFree: false);
 
                 var acmeClient = _container.Resolve<AcmeClient>();
                 acmeClient.ExportSigner(false);

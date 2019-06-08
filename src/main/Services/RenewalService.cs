@@ -133,7 +133,7 @@ namespace PKISharp.WACS.Services
                         var storeConverter = new PluginOptionsConverter<StorePluginOptions>(_plugin.PluginOptionTypes<StorePluginOptions>());
                         var result = JsonConvert.DeserializeObject<Renewal>(
                             File.ReadAllText(rj.FullName),
-                            new encryptconvert(),
+                            new protectedStringConverter(),
                             new StorePluginOptionsConverter(storeConverter),
                             new PluginOptionsConverter<TargetPluginOptions>(_plugin.PluginOptionTypes<TargetPluginOptions>()),
                             new PluginOptionsConverter<CsrPluginOptions>(_plugin.PluginOptionTypes<CsrPluginOptions>()),
@@ -215,7 +215,7 @@ namespace PKISharp.WACS.Services
                         {
                             NullValueHandling = NullValueHandling.Ignore,
                             Formatting = Formatting.Indented,
-                            Converters = { new encryptconvert(machineFree: machineFree) }
+                            Converters = { new protectedStringConverter(machineFree: machineFree) }
                         }));
                     }
                     renewal.New = false;
@@ -280,28 +280,27 @@ namespace PKISharp.WACS.Services
             throw new NotImplementedException();
         }
     }
-    class encryptconvert : JsonConverter<protectedString>
+    /// <summary>
+    /// handles type 'protectedString' for json, including parameter to save as in machine-independent form
+    /// </summary>
+    class protectedStringConverter : JsonConverter<protectedString>
     {
         private readonly bool _machineFree;
 
-        public encryptconvert(bool machineFree = false)
+        public protectedStringConverter(bool machineFree = false)
         {
             _machineFree = machineFree;
         }
 
-        public override void WriteJson(JsonWriter writer, protectedString protStr, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, protectedString protectedStr, JsonSerializer serializer)
         {
-            string unprotected = protStr.value.Unprotect();
-            
+            string unprotected = protectedStr.value.Unprotect();            
             writer.WriteValue(unprotected.Protect(machineFree: _machineFree));
         }
         public override protectedString ReadJson(JsonReader reader, Type objectType, protectedString existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             string s = (string)reader.Value;
-
-            var ret = new protectedString();
-            ret.value = s.Protect();
-            return ret;
+            return new protectedString() { value = s };
         }
     }
 }

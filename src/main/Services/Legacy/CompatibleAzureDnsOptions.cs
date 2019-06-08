@@ -15,12 +15,12 @@ namespace PKISharp.WACS.Services.Legacy
     {
         public string ClientId { get; set; }
         public string ResourceGroupName { get; set; }
-        public string SecretSafe { get; set; }
+        public protectedString SecretSafe { get; set; }
         [JsonIgnore]
         public string Secret
         {
-            get => SecretSafe.Unprotect();
-            set => SecretSafe = value.Protect();
+            get => SecretSafe.value.Unprotect();
+            set => SecretSafe.value = value.Protect();
         }
         public string SubscriptionId { get; set; }
         public string TenantId { get; set; }

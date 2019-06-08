@@ -70,9 +70,12 @@ namespace PKISharp.WACS.Extensions
             return Encoding.UTF8.GetString(clearBytes);
         }
     }
+    /// <summary>
+    /// protectedString will serialize and deserialize correctly to support machine-independent json storage
+    /// see encryptconvert class for more information
+    /// </summary>
     public class protectedString
-    {
-        public string value;
- 
+    {        
+        public string value; 
     }
 }

@@ -8,12 +8,12 @@ namespace PKISharp.WACS.Configuration
     public class NetworkCredentialOptions
     {
         public string UserName { get; set; }
-        public string PasswordSafe { get; set; }
+        public protectedString PasswordSafe { get; set; }
 
         [JsonIgnore]
         public string Password {
-            get => PasswordSafe.Unprotect();
-            set => PasswordSafe = value.Protect();
+            get => PasswordSafe.value.Unprotect();
+            set => PasswordSafe.value = value.Protect();
         }
 
         public NetworkCredential GetCredential()

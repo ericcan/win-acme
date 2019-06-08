@@ -90,7 +90,7 @@ namespace PKISharp.WACS.DomainObjects
                 catch
                 {
                     //likely the password encrypted on a different machine
-                    return null;
+                    throw new Exception("Unprotecting the PfxPassword Failed");
                 }
             }
             set => PfxPasswordProtected.value = value.Protect();

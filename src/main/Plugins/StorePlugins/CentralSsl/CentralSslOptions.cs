@@ -17,7 +17,7 @@ namespace PKISharp.WACS.Plugins.StorePlugins
         /// <summary>
         /// Encrypted (if enabled) version of the PfxFile password
         /// </summary>
-        public string PfxPasswordProtected { get; set; }
+        public protectedString PfxPasswordProtected { get; set; }
 
         /// <summary>
         /// Plain text readable version of the PfxFile password
@@ -25,8 +25,8 @@ namespace PKISharp.WACS.Plugins.StorePlugins
         [JsonIgnore]
         public string PfxPassword
         {
-            get => PfxPasswordProtected.Unprotect();
-            set => PfxPasswordProtected = value.Protect();
+            get => PfxPasswordProtected.value.Unprotect();
+            set => PfxPasswordProtected.value = value.Protect();
         }
 
         internal const string PluginName = "CentralSsl";
