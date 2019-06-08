@@ -70,4 +70,9 @@ namespace PKISharp.WACS.Extensions
             return Encoding.UTF8.GetString(clearBytes);
         }
     }
+    public class protectedString
+    {
+        public string value;
+ 
+    }
 }
