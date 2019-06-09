@@ -294,8 +294,16 @@ namespace PKISharp.WACS.Services
 
         public override void WriteJson(JsonWriter writer, protectedString protectedStr, JsonSerializer serializer)
         {
-            string unprotected = protectedStr.value.Unprotect();            
-            writer.WriteValue(unprotected.Protect(machineFree: _machineFree));
+            try
+            {
+                string unprotected = protectedStr.value.Unprotect();
+                writer.WriteValue(unprotected.Protect(machineFree: _machineFree));
+            }
+            catch
+            {
+                //couldn't unprotect string; keeping old value
+                writer.WriteValue(protectedStr.value);
+            }
         }
         public override protectedString ReadJson(JsonReader reader, Type objectType, protectedString existingValue, bool hasExistingValue, JsonSerializer serializer)
         {

@@ -231,13 +231,13 @@ namespace PKISharp.WACS
         /// </summary>
         private void Migrate(RunLevel runLevel)
         {
-            var settings = _container.Resolve<ISettingsService>();
             _log.Information("To move your installation of win-acme to another machine, you will want " +
-            "to copy the data directory's files to the new machine. However, if you use the Encrypted Configuration option, your renewal files " +
+            "to copy the data directory's files to the new machine. However, if you use the Encrypted Configuration option, your renewal " +
             "files contain protected data that is dependent on your local machine. You can " +
             "use these tools to temporarily unprotect your data before moving from the old machine. Once you copy the files, you can " +
-            "reprotect it. This data includes passwords for your certificates, other passwords, and a key used " +
+            "reprotect it. The renewal files includes passwords for your certificates, other passwords, and a key used " +
             "for signing requests for new certificates.");
+            var settings = _container.Resolve<ISettingsService>();
             _log.Information("Data directory: {settings}", settings.ConfigPath);
             var options = new List<Choice<int>>
             {
