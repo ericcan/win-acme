@@ -85,7 +85,7 @@ namespace PKISharp.WACS.Services
             foreach (Renewal r in renewals)
             {
                 r.Updated = true;
-                _log.Information("{dir} password for {friendlyName}", machineFree == true ? "Unprotected":"Protected", r.LastFriendlyName);
+                _log.Information("{dir} password information for {friendlyName}", machineFree == true ? "Unprotected":"Re-saved", r.LastFriendlyName);
             }
             WriteRenewals(renewals, machineFree);
         }

@@ -88,7 +88,7 @@ namespace PKISharp.WACS
                     catch
                     {
                         pfxPW = "Couldn't unprotect PFX password";
-                        _log.Error("Password unprotected failed, likely due to encryption on a different machine.");
+                        _log.Error("Password unprotecting failed, likely due to encryption on a different machine.");
                     }
                     _input.Show(".pfx password", pfxPW);
                     _input.Show("Renewal due", renewal.Date.ToUserString());
@@ -239,6 +239,8 @@ namespace PKISharp.WACS
             "for signing requests for new certificates.");
             var settings = _container.Resolve<ISettingsService>();
             _log.Information("Data directory: {settings}", settings.ConfigPath);
+            bool encryptConfig = Properties.Settings.Default.EncryptConfig;
+            _log.Information("EncryptConfig setting: {EncryptConfig}", encryptConfig);
             var options = new List<Choice<int>>
             {
                 Choice.Create<int>(1, "Un-protect passwords (before migration)", "1", false),
@@ -246,7 +248,6 @@ namespace PKISharp.WACS
                 Choice.Create<int>(3, "Back", "Q", true)
             };
             int option = _input.ChooseFromList("Choose an option", options);
-            foreach (var r in _renewalService.Renewals)
             if (option == 1)
             {
                 _renewalService.Export(machineFree: true);
@@ -258,6 +259,7 @@ namespace PKISharp.WACS
             }
             if (option == 2)
             {
+                if (!encryptConfig) _log.Information("Note: The setting EncryptConfig is currently set to {false}. Change the setting to protect private passwords and keys",encryptConfig);
                 _renewalService.Export(machineFree: false);
 
                 var acmeClient = _container.Resolve<AcmeClient>();
