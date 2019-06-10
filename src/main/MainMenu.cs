@@ -52,7 +52,7 @@ namespace PKISharp.WACS
                 Choice.Create<Action>(() => TestEmail(), "Test email notification", "E"),
                 Choice.Create<Action>(() => UpdateAccount(RunLevel.Interactive), "ACME account details", "A"),
                 Choice.Create<Action>(() => Import(RunLevel.Interactive), "Import scheduled renewals from WACS/LEWS 1.9.x", "I"),
-                Choice.Create<Action>(() => Migrate(RunLevel.Interactive), "Export/Import data to migrate to new machine", "M"),
+                Choice.Create<Action>(() => Migrate(RunLevel.Interactive), "Encrypt/Unencrypt your data", "M"),
                 Choice.Create<Action>(() => { }, "Back", "Q", true)
             };
             _input.ChooseFromList("Please choose from the menu", options).Invoke();

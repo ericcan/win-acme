@@ -71,7 +71,8 @@ namespace PKISharp.WACS.Extensions
         }
     }
     /// <summary>
-    /// handles type 'protectedString' for json, including parameter to save as in machine-independent form
+    /// forces a re-calculation of the protected data according to current machine setting in EncryptConfig when
+    /// writing the json for renewals and options for plugins
     /// </summary>
     public class protectedStringConverter : JsonConverter<string>
     {
@@ -86,11 +87,17 @@ namespace PKISharp.WACS.Extensions
             {
                 //couldn't unprotect string; keeping old value
                 writer.WriteValue(protectedStr);
+                writer.WriteComment("This protected string cannot be decrypted on current machine. See instructions about migrating to new machine.");
             }
         }
         public override string ReadJson(JsonReader reader, Type objectType, string existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
+            const string clearPrefix = "clear-";
             string s = (string)reader.Value;
+            if(s.StartsWith(clearPrefix))
+            {
+                s = s.Substring(clearPrefix.Length).Protect();
+            }
             return s;
         }
     }
