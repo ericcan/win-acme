@@ -14,13 +14,14 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins
 
         public override string ChallengeType => Constants.Dns01ChallengeType;
 
-        public protectedString SecretSafe { get; set; }
+        [JsonConverter(typeof(protectedStringConverter))]
+        public string SecretSafe { get; set; }
 
         [JsonIgnore]
         public string ApiKey
         {
-            get => SecretSafe.value.Unprotect();
-            set => SecretSafe.value = value.Protect();
+            get => SecretSafe.Unprotect();
+            set => SecretSafe = value.Protect();
         }
     }
 }

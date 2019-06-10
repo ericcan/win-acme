@@ -2,6 +2,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
+using Newtonsoft.Json;
 
 namespace PKISharp.WACS.Extensions
 {
@@ -19,14 +20,13 @@ namespace PKISharp.WACS.Extensions
         public static string Protect(
             this string clearText,
             string optionalEntropy = null,
-            DataProtectionScope scope = DataProtectionScope.LocalMachine,
-            bool machineFree=false)
+            DataProtectionScope scope = DataProtectionScope.LocalMachine)
         {
             if (clearText == null)
                 return null;
 
             byte[] clearBytes = Encoding.UTF8.GetBytes(clearText);
-            if (Properties.Settings.Default.EncryptConfig && !machineFree)
+            if (Properties.Settings.Default.EncryptConfig)
             {
                 byte[] entropyBytes = string.IsNullOrEmpty(optionalEntropy)
                     ? null
@@ -71,11 +71,27 @@ namespace PKISharp.WACS.Extensions
         }
     }
     /// <summary>
-    /// protectedString will serialize and deserialize correctly to support machine-independent json storage
-    /// see encryptconvert class for more information
+    /// handles type 'protectedString' for json, including parameter to save as in machine-independent form
     /// </summary>
-    public class protectedString
-    {        
-        public string value; 
+    public class protectedStringConverter : JsonConverter<string>
+    {
+        public override void WriteJson(JsonWriter writer, string protectedStr, JsonSerializer serializer)
+        {
+            try
+            {
+                string unprotected = protectedStr.Unprotect();
+                writer.WriteValue(unprotected.Protect());
+            }
+            catch
+            {
+                //couldn't unprotect string; keeping old value
+                writer.WriteValue(protectedStr);
+            }
+        }
+        public override string ReadJson(JsonReader reader, Type objectType, string existingValue, bool hasExistingValue, JsonSerializer serializer)
+        {
+            string s = (string)reader.Value;
+            return s;
+        }
     }
 }

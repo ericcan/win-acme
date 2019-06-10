@@ -14,13 +14,15 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 
         public string ClientId { get; set; }
         public string ResourceGroupName { get; set; }
-        public protectedString SecretSafe { get; set; }
+
+        [JsonConverter(typeof(protectedStringConverter))]
+        public string SecretSafe { get; set; }
 
         [JsonIgnore]
         public string Secret
         {
-            get => SecretSafe.value.Unprotect();
-            set => SecretSafe.value = value.Protect();
+            get => SecretSafe.Unprotect();
+            set => SecretSafe = value.Protect();
         }
 
         public string SubscriptionId { get; set; }

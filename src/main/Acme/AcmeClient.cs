@@ -227,26 +227,16 @@ namespace PKISharp.WACS.Acme
             set
             {
                 _log.Debug("Saving signer to {SignerPath}", SignerPath);
-                writeSignerFile(value);
+                File.WriteAllText(SignerPath, JsonConvert.SerializeObject(value).Protect());
             }
         }
-        internal void ExportSigner(bool machineFree)
+        internal void ExportSigner()
         {
             var signer = AccountSigner;
 
-            if (machineFree)
-            {
-                writeSignerFile(signer, machineFree: true);
-                _log.Information("Signer saved in unprotected form for migration");
-            } else
-            {
-                writeSignerFile(signer, machineFree: false);
-                _log.Information("Signer saved in protected form for migration");
-            }
-        }
-        private void writeSignerFile(AccountSigner signer, bool machineFree = false)
-        {
-            File.WriteAllText(SignerPath, JsonConvert.SerializeObject(signer).Protect(machineFree: machineFree));
+            AccountSigner=signer; //forces a re-save of the signer
+            _log.Information("Signer re-saved");
+ 
         }
         #endregion
 

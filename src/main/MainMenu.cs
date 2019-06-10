@@ -250,20 +250,20 @@ namespace PKISharp.WACS
             int option = _input.ChooseFromList("Choose an option", options);
             if (option == 1)
             {
-                _renewalService.Export(machineFree: true);
+                _renewalService.Export();
 
                 var acmeClient = _container.Resolve<AcmeClient>();
-                acmeClient.ExportSigner(true);
+                acmeClient.ExportSigner();
                 _log.Information("You may now transfer your win-acme data to a new machine.");
                 _log.Information("Once you have transfered the files, run this step again to re-protect");
             }
             if (option == 2)
             {
                 if (!encryptConfig) _log.Information("Note: The setting EncryptConfig is currently set to {false}. Change the setting to protect private passwords and keys",encryptConfig);
-                _renewalService.Export(machineFree: false);
+                _renewalService.Export();
 
                 var acmeClient = _container.Resolve<AcmeClient>();
-                acmeClient.ExportSigner(false);
+                acmeClient.ExportSigner();
             }
         }
         /// <summary>

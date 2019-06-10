@@ -79,15 +79,15 @@ namespace PKISharp.WACS.Services
             Renewals = renewals;
         }
 
-        public void Export(bool machineFree)
+        public void Export()
         {
             var renewals = Renewals.ToList();
             foreach (Renewal r in renewals)
             {
                 r.Updated = true;
-                _log.Information("{dir} password information for {friendlyName}", machineFree == true ? "Unprotected":"Re-saved", r.LastFriendlyName);
+                _log.Information("Re-writing password information for {friendlyName}", r.LastFriendlyName);
             }
-            WriteRenewals(renewals, machineFree);
+            WriteRenewals(renewals);
         }
         public IEnumerable<Renewal> Renewals
         {
@@ -133,7 +133,6 @@ namespace PKISharp.WACS.Services
                         var storeConverter = new PluginOptionsConverter<StorePluginOptions>(_plugin.PluginOptionTypes<StorePluginOptions>());
                         var result = JsonConvert.DeserializeObject<Renewal>(
                             File.ReadAllText(rj.FullName),
-                            new protectedStringConverter(),
                             new StorePluginOptionsConverter(storeConverter),
                             new PluginOptionsConverter<TargetPluginOptions>(_plugin.PluginOptionTypes<TargetPluginOptions>()),
                             new PluginOptionsConverter<CsrPluginOptions>(_plugin.PluginOptionTypes<CsrPluginOptions>()),
@@ -193,7 +192,7 @@ namespace PKISharp.WACS.Services
         /// </summary>
         /// <param name="BaseUri"></param>
         /// <param name="Renewals"></param>
-        public void WriteRenewals(IEnumerable<Renewal> Renewals,bool machineFree=false)
+        public void WriteRenewals(IEnumerable<Renewal> Renewals)
         {
             var list = Renewals.ToList();
             list.ForEach(renewal =>
@@ -214,8 +213,7 @@ namespace PKISharp.WACS.Services
                         File.WriteAllText(file.FullName, JsonConvert.SerializeObject(renewal, new JsonSerializerSettings
                         {
                             NullValueHandling = NullValueHandling.Ignore,
-                            Formatting = Formatting.Indented,
-                            Converters = { new protectedStringConverter(machineFree: machineFree) }
+                            Formatting = Formatting.Indented
                         }));
                     }
                     renewal.New = false;
@@ -280,35 +278,5 @@ namespace PKISharp.WACS.Services
             throw new NotImplementedException();
         }
     }
-    /// <summary>
-    /// handles type 'protectedString' for json, including parameter to save as in machine-independent form
-    /// </summary>
-    class protectedStringConverter : JsonConverter<protectedString>
-    {
-        private readonly bool _machineFree;
 
-        public protectedStringConverter(bool machineFree = false)
-        {
-            _machineFree = machineFree;
-        }
-
-        public override void WriteJson(JsonWriter writer, protectedString protectedStr, JsonSerializer serializer)
-        {
-            try
-            {
-                string unprotected = protectedStr.value.Unprotect();
-                writer.WriteValue(unprotected.Protect(machineFree: _machineFree));
-            }
-            catch
-            {
-                //couldn't unprotect string; keeping old value
-                writer.WriteValue(protectedStr.value);
-            }
-        }
-        public override protectedString ReadJson(JsonReader reader, Type objectType, protectedString existingValue, bool hasExistingValue, JsonSerializer serializer)
-        {
-            string s = (string)reader.Value;
-            return new protectedString() { value = s };
-        }
-    }
 }
