@@ -75,7 +75,7 @@ namespace PKISharp.WACS.DomainObjects
         /// Encrypted (if enabled) version of the PfxFile password
         /// </summary>
         [JsonConverter(typeof(protectedStringConverter))]
-        public string PfxPasswordProtected;
+        public string PfxPasswordProtected { get; set; }
 
         /// <summary>
         /// Plain text readable version of the PfxFile password

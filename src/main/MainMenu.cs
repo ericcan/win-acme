@@ -234,36 +234,29 @@ namespace PKISharp.WACS
             _log.Information("To move your installation of win-acme to another machine, you will want " +
             "to copy the data directory's files to the new machine. However, if you use the Encrypted Configuration option, your renewal " +
             "files contain protected data that is dependent on your local machine. You can " +
-            "use these tools to temporarily unprotect your data before moving from the old machine. Once you copy the files, you can " +
-            "reprotect it. The renewal files includes passwords for your certificates, other passwords, and a key used " +
+            "use this tools to temporarily unprotect your data before moving from the old machine. " +
+            "The renewal files includes passwords for your certificates, other passwords/keys, and a key used " +
             "for signing requests for new certificates.");
-            var settings = _container.Resolve<ISettingsService>();
+            _log.Information("To remove machine-dependent protections, use the following steps. ");
+            _log.Information("  1. On your old machine, set the EncryptConfig setting to false");
+            _log.Information("  2. Run this option; all protected values will be unprotected.");
+            _log.Information("  3. Copy your data files to the new machine.");
+            _log.Information("  4. On the new machine, set the EncryptConfig setting to true");
+            _log.Information("  5. Run this option; all unprotected values will be saved with protection");
+
+           var settings = _container.Resolve<ISettingsService>();
             _log.Information("Data directory: {settings}", settings.ConfigPath);
             bool encryptConfig = Properties.Settings.Default.EncryptConfig;
-            _log.Information("EncryptConfig setting: {EncryptConfig}", encryptConfig);
-            var options = new List<Choice<int>>
+            _log.Information("Current EncryptConfig setting: {EncryptConfig}", encryptConfig);
+            bool response = false;
+            response = _input.PromptYesNo($"Save all renewal files {(encryptConfig?"with":"without")} encryption?", false);
+            if (response==true)
             {
-                Choice.Create<int>(1, "Un-protect passwords (before migration)", "1", false),
-                Choice.Create<int>(2, "Re-Protect passwords (after migration)", "2", false),
-                Choice.Create<int>(3, "Back", "Q", true)
-            };
-            int option = _input.ChooseFromList("Choose an option", options);
-            if (option == 1)
-            {
-                _renewalService.Export();
+                _renewalService.Export(); //re-saves all renewals, forcing re-write of all protected strings decorated with [jsonConverter(typeOf(protectedStringConverter())]
 
                 var acmeClient = _container.Resolve<AcmeClient>();
-                acmeClient.ExportSigner();
-                _log.Information("You may now transfer your win-acme data to a new machine.");
-                _log.Information("Once you have transfered the files, run this step again to re-protect");
-            }
-            if (option == 2)
-            {
-                if (!encryptConfig) _log.Information("Note: The setting EncryptConfig is currently set to {false}. Change the setting to protect private passwords and keys",encryptConfig);
-                _renewalService.Export();
-
-                var acmeClient = _container.Resolve<AcmeClient>();
-                acmeClient.ExportSigner();
+                acmeClient.ExportSigner(); //re-writes the signer file
+                _log.Information("Your files are re-saved with encryption turned {onoff}",encryptConfig? "on":"off");
             }
         }
         /// <summary>
