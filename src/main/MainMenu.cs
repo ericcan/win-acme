@@ -233,6 +233,7 @@ namespace PKISharp.WACS
         {
             bool response = false;
             bool encryptConfig = Properties.Settings.Default.EncryptConfig;
+            var settings = _container.Resolve<ISettingsService>();
             if (runLevel != RunLevel.Unattended)
             {
                 _log.Information("To move your installation of win-acme to another machine, you will want " +
@@ -247,14 +248,13 @@ namespace PKISharp.WACS
                 _log.Information("  3. Copy your data files to the new machine.");
                 _log.Information("  4. On the new machine, set the EncryptConfig setting to true");
                 _log.Information("  5. Run this option; all unprotected values will be saved with protection");
-
-                var settings = _container.Resolve<ISettingsService>();
                 _log.Information("Data directory: {settings}", settings.ConfigPath);
                 _log.Information("Current EncryptConfig setting: {EncryptConfig}", encryptConfig);
                 response = _input.PromptYesNo($"Save all renewal files {(encryptConfig ? "with" : "without")} encryption?", false);
             }
             if (response==true || runLevel==RunLevel.Unattended)
             {
+                _log.Information("Updating files in: {settings}", settings.ConfigPath);
                 _renewalService.Export(); //re-saves all renewals, forcing re-write of all protected strings decorated with [jsonConverter(typeOf(protectedStringConverter())]
 
                 var acmeClient = _container.Resolve<AcmeClient>();
