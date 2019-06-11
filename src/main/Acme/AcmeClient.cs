@@ -232,11 +232,17 @@ namespace PKISharp.WACS.Acme
         }
         internal void ExportSigner()
         {
-            var signer = AccountSigner;
+            try
+            { 
+                var signer = AccountSigner;
 
-            AccountSigner=signer; //forces a re-save of the signer
-            _log.Information("Signer re-saved");
- 
+                AccountSigner=signer; //forces a re-save of the signer
+                _log.Information("Signer re-saved");
+            }
+            catch
+            {
+                _log.Error("Cannot re-save signer as it is likely encrypted on a different machine");
+            }
         }
         #endregion
 
