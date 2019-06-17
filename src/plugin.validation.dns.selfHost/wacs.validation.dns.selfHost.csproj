@@ -36,6 +36,12 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="ACMESharp">
+      <HintPath>..\packages\ACMESharpCore.2.0.1.105\lib\netstandard2.0\ACMESharp.dll</HintPath>
+    </Reference>
+    <Reference Include="DNS">
+      <HintPath>..\packages\DNS.5.0.0\lib\netstandard2.0\DNS.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
