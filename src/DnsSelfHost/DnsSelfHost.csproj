@@ -1,8 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
+    <ApplicationIcon />
+    <StartupObject />
+    <AssemblyName>PKISharp.WACS.Plugins.ValidationPlugins.DnsSelfHost</AssemblyName>
+    <RootNamespace>PKISharp.WACS.Plugins.ValidationPlugins</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
