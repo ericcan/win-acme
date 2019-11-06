@@ -38,6 +38,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{1FD6
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wacs.validation.dns.cloudflare", "plugin.validation.dns.cloudflare\wacs.validation.dns.cloudflare.csproj", "{DB1D4461-5563-425E-8D5E-D57893015D73}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsSelfHost", "DnsSelfHost\DnsSelfHost.csproj", "{3410B7F0-EC5A-476C-9855-5239FBBDCE7E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{6D8A5D1A-F785-4596-B60A-9AD7250FB97D} = {6D8A5D1A-F785-4596-B60A-9AD7250FB97D}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -105,6 +110,12 @@ Global
 		{DB1D4461-5563-425E-8D5E-D57893015D73}.Release|Any CPU.Build.0 = Release|Any CPU
 		{DB1D4461-5563-425E-8D5E-D57893015D73}.ReleasePluggable|Any CPU.ActiveCfg = Release|Any CPU
 		{DB1D4461-5563-425E-8D5E-D57893015D73}.ReleasePluggable|Any CPU.Build.0 = Release|Any CPU
+		{3410B7F0-EC5A-476C-9855-5239FBBDCE7E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3410B7F0-EC5A-476C-9855-5239FBBDCE7E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3410B7F0-EC5A-476C-9855-5239FBBDCE7E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3410B7F0-EC5A-476C-9855-5239FBBDCE7E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3410B7F0-EC5A-476C-9855-5239FBBDCE7E}.ReleasePluggable|Any CPU.ActiveCfg = Release|Any CPU
+		{3410B7F0-EC5A-476C-9855-5239FBBDCE7E}.ReleasePluggable|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
