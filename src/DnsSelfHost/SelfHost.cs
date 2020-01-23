@@ -25,7 +25,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             //setup for temporary DNS Server
             selfDnsServer = new DnsServerAcme(_log);
 
-            await CreateRecord(_challenge.DnsRecordName, _challenge.DnsRecordValue);
+            await CreateRecord(Challenge.DnsRecordName, Challenge.DnsRecordValue);
             selfDnsServer.Listen();
 
             PreValidate();
@@ -51,10 +51,10 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 
                 dnsClient = _dnsClientProvider.GetDefaultClient(0);
 
-                var tokens =  dnsClient.GetTextRecordValues(_challenge.DnsRecordName,0).Result;
-                if (tokens.Contains(_challenge.DnsRecordValue))
+                var tokens =  dnsClient.GetTextRecordValues(Challenge.DnsRecordName,0).Result;
+                if (tokens.Contains(Challenge.DnsRecordValue))
                 {
-                    _log.Information("Preliminary validation succeeded: {ExpectedTxtRecord} found in {TxtRecords}", _challenge.DnsRecordValue, String.Join(", ", tokens));
+                    _log.Information("Preliminary validation succeeded: {ExpectedTxtRecord} found in {TxtRecords}", Challenge.DnsRecordValue, String.Join(", ", tokens));
                     return true;
                 }
                 else if (!tokens.Any())
@@ -63,7 +63,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                 }
                 else
                 {
-                    _log.Warning("Preliminary validation failed: {ExpectedTxtRecord} not found in {TxtRecords}", _challenge.DnsRecordValue, String.Join(", ", tokens));
+                    _log.Warning("Preliminary validation failed: {ExpectedTxtRecord} not found in {TxtRecords}", Challenge.DnsRecordValue, String.Join(", ", tokens));
                 }
             }
             catch

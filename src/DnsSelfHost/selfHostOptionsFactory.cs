@@ -74,7 +74,9 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                         //use the test server as the name server to check the first identifier
                         //this should work even if the NS record is not yet set up in the DNS zone
                         _log.Information("Checking that port 53 is open on {IP}...", externalip);
-                        var TXTResponse = await _dnsClient.GetClient(serverIP).GetTextRecordValues(identifiers.First(),0);
+                        var lookupClients = await _dnsClient.GetClients(serverIP.ToString(), 0);
+                        var lookupclient = lookupClients.First();
+                        var TXTResponse = await lookupclient.GetTextRecordValues(identifiers.First(),0);
                         if (TXTResponse.Any() && TXTResponse.First() == testTXT)
                         {
                             _log.Information("Port 53 is open and the DNS server is operating correctly");
