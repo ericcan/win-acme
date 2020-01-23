@@ -15,12 +15,14 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         private readonly LookupClientProvider _dnsClient;
         private readonly IInputService _input;
         private readonly IArgumentsService _arguments;
+        private readonly ILogService _log;
 
         public SelfDNSOptionsFactory(ILogService log, LookupClientProvider dnsClient,
             IInputService input) : base(Dns01ChallengeValidationDetails.Dns01ChallengeType) 
         {
             _dnsClient = dnsClient;
             _input = input;
+            _log = log;
         }
 
         public override async Task<SelfDNSOptions> Aquire(Target target, IInputService input, RunLevel runLevel)
@@ -72,7 +74,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                         //use the test server as the name server to check the first identifier
                         //this should work even if the NS record is not yet set up in the DNS zone
                         _log.Information("Checking that port 53 is open on {IP}...", externalip);
-                        var TXTResponse = _dnsClient.GetClient(serverIP).GetTextRecordValues(identifiers.First()).ToList();
+                        var TXTResponse = await _dnsClient.GetClient(serverIP).GetTextRecordValues(identifiers.First(),0);
                         if (TXTResponse.Any() && TXTResponse.First() == testTXT)
                         {
                             _log.Information("Port 53 is open and the DNS server is operating correctly");
@@ -83,7 +85,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                     {
                         _log.Error("An error occurred checking port 53");
                     }
-                    retry = _input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?", false);
+                    retry = await _input.PromptYesNo("The DNS server is not exposed on port 53. Would you like to try again?", false);
                 } while (retry);
 
                 do
@@ -95,7 +97,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                         {
                             server.reqReceived = false;
                             _log.Information("Checking NS record setup for {identifier}", identifier);
-                            var TXTResponse = _dnsClient.DefaultClient.GetTextRecordValues(identifier);
+                            var TXTResponse = await _dnsClient.GetDefaultClient(0).GetTextRecordValues(identifier,0);
                             if (TXTResponse.Contains(testTXT))
                             {
                                 _log.Information("Successful lookup for {identifier}", identifier);
@@ -124,7 +126,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                     {
                         _log.Error("An error occurred while checking records");
                     }
-                    retry = _input.PromptYesNo("Some of your NS entries are not working. Would you like to test the DNS entries again?", false);
+                    retry = await _input.PromptYesNo("Some of your NS entries are not working. Would you like to test the DNS entries again?", false);
                 } while (retry);
             }
             return new SelfDNSOptions();            

@@ -4,6 +4,7 @@ using DNS.Server.Acme;
 using System.Linq;
 using System;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
 {
@@ -48,9 +49,9 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             {
                 LookupClientWrapper dnsClient;
 
-                dnsClient = _dnsClientProvider.DefaultClient;
+                dnsClient = _dnsClientProvider.GetDefaultClient(0);
 
-                var tokens = dnsClient.GetTextRecordValues(_challenge.DnsRecordName).ToList();
+                var tokens =  dnsClient.GetTextRecordValues(_challenge.DnsRecordName,0).Result;
                 if (tokens.Contains(_challenge.DnsRecordValue))
                 {
                     _log.Information("Preliminary validation succeeded: {ExpectedTxtRecord} found in {TxtRecords}", _challenge.DnsRecordValue, String.Join(", ", tokens));
