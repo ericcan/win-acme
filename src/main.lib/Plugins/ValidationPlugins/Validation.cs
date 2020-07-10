@@ -1,4 +1,5 @@
 ﻿using ACMESharp.Authorizations;
+using PKISharp.WACS.Context;
 using PKISharp.WACS.Plugins.Interfaces;
 using System;
 using System.Threading.Tasks;
@@ -10,31 +11,15 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins
     /// </summary>
     public abstract class Validation<TChallenge> : IValidationPlugin where TChallenge : class, IChallengeValidationDetails
     {
-        public bool HasChallenge => _challenge != null;
-        public TChallenge Challenge 
-        {
-            get
-            {
-                if (_challenge == null)
-                {
-                    throw new InvalidOperationException();
-                }
-                return _challenge;
-            }
-        }
-        private TChallenge? _challenge;
-
-
         /// <summary>
         /// Handle the challenge
         /// </summary>
         /// <param name="challenge"></param>
-        public async Task PrepareChallenge(IChallengeValidationDetails challenge)
+        public async Task PrepareChallenge(ValidationContext context)
         {
-            if (challenge is TChallenge typed)
+            if (context.ChallengeDetails is TChallenge typed)
             {
-                _challenge = typed;
-                await PrepareChallenge();
+                await PrepareChallenge(context, typed);
             } 
             else
             {
@@ -46,34 +31,24 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins
         /// Handle the challenge
         /// </summary>
         /// <param name="challenge"></param>
-        public abstract Task PrepareChallenge();
+        public abstract Task PrepareChallenge(ValidationContext context, TChallenge typed);
 
         /// <summary>
-        /// Clean up after validation
+        /// Commit changes
         /// </summary>
+        /// <returns></returns>
+        public abstract Task Commit();
+
         public abstract Task CleanUp();
 
-        public virtual bool Disabled => false;
+        /// <summary>
+        /// Is the plugin currently disabled
+        /// </summary>
+        public virtual (bool, string?) Disabled => (false, null);
 
-        #region IDisposable
-
-        private bool disposedValue = false; // To detect redundant calls
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!disposedValue)
-            {
-                if (disposing)
-                {
-                    CleanUp();
-                }
-                disposedValue = true;
-            }
-        }
-
-        public void Dispose() => Dispose(true);
-
-        #endregion
-
+        /// <summary>
+        /// No parallelism by default
+        /// </summary>
+        public virtual ParallelOperations Parallelism => ParallelOperations.None;
     }
 }

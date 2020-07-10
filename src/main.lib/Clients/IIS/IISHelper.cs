@@ -79,12 +79,17 @@ namespace PKISharp.WACS.Clients.IIS
                 Where(sb => !string.IsNullOrWhiteSpace(sb.binding.Host)).
                 ToList();
 
+            static string lookupKey(IIISSite site, IIISBinding binding) => 
+                site.Id + "#" + binding.BindingInformation.ToLower();
+
             // Option: hide http bindings when there are already https equivalents
-            var https = siteBindings.Where(sb => 
-                sb.binding.Protocol == "https" ||
-                sb.site.Bindings.Any(other => 
-                    other.Protocol == "https" &&
-                    string.Equals(sb.binding.Host, other.Host, StringComparison.InvariantCultureIgnoreCase))).ToList();
+            var https = siteBindings
+                .Where(sb => 
+                    sb.binding.Protocol == "https" ||
+                    sb.site.Bindings.Any(other => 
+                        other.Protocol == "https" &&
+                        string.Equals(sb.binding.Host, other.Host, StringComparison.InvariantCultureIgnoreCase)))
+                .ToDictionary(sb => lookupKey(sb.site, sb.binding));
 
             var targets = siteBindings.
                 Select(sb => new
@@ -92,7 +97,7 @@ namespace PKISharp.WACS.Clients.IIS
                     host = sb.binding.Host.ToLower(),
                     sb.site,
                     sb.binding,
-                    https = https.Contains(sb)
+                    https = https.ContainsKey(lookupKey(sb.site, sb.binding))
                 }).
                 Select(sbi => new IISBindingOption(sbi.host, _idnMapping.GetAscii(sbi.host))
                 {
@@ -186,12 +191,6 @@ namespace PKISharp.WACS.Clients.IIS
                 || regex.IsMatch(binding.HostPunycode);
         }
 
-        internal string PatternToRegex(string pattern)
-        {
-            var parts = pattern.ParseCsv();
-            return $"^({string.Join('|', parts.Select(x => Regex.Escape(x).Replace(@"\*", ".*").Replace(@"\?", ".")))})$";
-        }
-
         internal string HostsToRegex(IEnumerable<string> hosts) =>
             $"^({string.Join('|', hosts.Select(x => Regex.Escape(x)))})$";
 
@@ -199,7 +198,7 @@ namespace PKISharp.WACS.Clients.IIS
         {
             if (!string.IsNullOrEmpty(options.IncludePattern))
             {
-                return new Regex(PatternToRegex(options.IncludePattern));
+                return new Regex(options.IncludePattern.PatternToRegex());
             }
             if (options.IncludeHosts != null && options.IncludeHosts.Any())
             {

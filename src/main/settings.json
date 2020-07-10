@@ -14,8 +14,8 @@
     "DefaultBaseUriTest": "https://acme-staging-v02.api.letsencrypt.org/",
     "DefaultBaseUriImport": "https://acme-v01.api.letsencrypt.org/",
     "PostAsGet": true,
-    "RetryCount": 4,
-    "RetryInterval": 2
+    "RetryCount": 15,
+    "RetryInterval": 5
   },
   "Proxy": {
     "Url": "[System]",
@@ -39,10 +39,12 @@
     "SmtpUser": null,
     "SmtpPassword": null,
     "SmtpSecure": false,
+    "SmtpSecureMode": 1,
     "SenderName": null,
     "SenderAddress": null,
     "ReceiverAddresses": [],
-    "EmailOnSuccess": false
+    "EmailOnSuccess": false,
+    "ComputerName": null
   },
   "Security": {
     "RSAKeyBits": 3072,
@@ -53,17 +55,44 @@
   "Script": {
     "Timeout": 600
   },
+  "Target": {
+    "DefaultTarget": null
+  },
   "Validation": {
+    "DefaultValidation": null,
+    "DefaultValidationMode": null,
+    "DisableMultiThreading": true,
     "CleanupFolders": true,
     "PreValidateDns": true,
     "PreValidateDnsRetryCount": 5,
     "PreValidateDnsRetryInterval": 30,
+    "AllowDnsSubstitution": true,
     "DnsServers": [ "8.8.8.8", "1.1.1.1", "8.8.4.4" ]
   },
+  "Order": {
+    "DefaultOrder": null
+  },
+  "Csr": {
+    "DefaultCsr": null
+  },
   "Store": {
-    "DefaultCertificateStore": null,
-    "DefaultCentralSslStore": null,
-    "DefaultCentralSslPfxPassword": null,
-    "DefaultPemFilesPath": null
+    "DefaultStore": null,
+    "CertificateStore": {
+      "DefaultStore": null
+    },
+    "CentralSsl": {
+      "DefaultPath": null,
+      "DefaultPassword": null
+    },
+    "PemFiles": {
+      "DefaultPath": null
+    },
+    "PfxFile": {
+      "DefaultPath": null,
+      "DefaultPassword": null
+    }
+  },
+  "Installation": {
+    "DefaultInstallation": null
   }
 }

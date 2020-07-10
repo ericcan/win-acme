@@ -1,4 +1,5 @@
 ﻿using Fclp;
+using PKISharp.WACS.Plugins.TargetPlugins;
 
 namespace PKISharp.WACS.Configuration
 {
@@ -14,6 +15,7 @@ namespace PKISharp.WACS.Configuration
                 !string.IsNullOrEmpty(current.FriendlyName) ||
                 !string.IsNullOrEmpty(current.Installation) ||
                 !string.IsNullOrEmpty(current.Store) ||
+                !string.IsNullOrEmpty(current.Order) ||
                 !string.IsNullOrEmpty(current.Csr) ||
                 !string.IsNullOrEmpty(current.Target) ||
                 !string.IsNullOrEmpty(current.Validation);
@@ -58,13 +60,16 @@ namespace PKISharp.WACS.Configuration
                 .WithDescription("Renew any certificates that are due. This argument is used by the scheduled task. Note that it's not possible to change certificate properties and renew at the same time.");
             parser.Setup(o => o.Force)
                 .As("force")
-                .WithDescription("Force renewal on all scheduled certificates when used together with --renew. Otherwise just bypasses the certificate cache on new certificate requests.");
+                .WithDescription("Force renewal when used together with --renew. Otherwise bypasses the certificate cache on new certificate requests.");
 
             // Commands
 
             parser.Setup(o => o.Cancel)
-             .As("cancel")
-             .WithDescription("Cancel scheduled renewal specified by the friendlyname argument.");
+                .As("cancel")
+                .WithDescription("Cancel renewal specified by the --friendlyname or --id arguments.");
+            parser.Setup(o => o.Revoke)
+                .As("revoke")
+                .WithDescription("Revoke the most recently issued certificate for the renewal specified by the --friendlyname or --id arguments.");
 
             parser.Setup(o => o.List)
                 .As("list")
@@ -74,11 +79,11 @@ namespace PKISharp.WACS.Configuration
 
             parser.Setup(o => o.Id)
                 .As("id")
-                .WithDescription("[--target|--cancel|--renew] Id of a new or existing renewal, can be used to override the default when creating a new renewal or to specify a specific renewal for other commands.");
+                .WithDescription("[--target|--cancel|--renew|--revoke] Id of a new or existing renewal, can be used to override the default when creating a new renewal or to specify a specific renewal for other commands.");
 
             parser.Setup(o => o.FriendlyName)
                 .As("friendlyname")
-                .WithDescription("[--target|--cancel|--renew] Friendly name of a new or existing renewal, can be used to override the default when creating a new renewal or to specify a specific renewal for other commands.");
+                .WithDescription("[--target|--cancel|--renew|--revoke] Friendly name of a new or existing renewal, can be used to override the default when creating a new renewal or to specify a specific renewal for other commands. In the latter case a pattern might be used. " + IISArgumentsProvider.PatternExamples);
 
             // Plugins (unattended)
 
@@ -94,10 +99,14 @@ namespace PKISharp.WACS.Configuration
                 .As("validationmode")
                 .SetDefault(Constants.Http01ChallengeType)
                 .WithDescription("Specify which validation mode to use. HTTP-01 is the default.");
+          
+            parser.Setup(o => o.Order)
+                .As("order")
+                .WithDescription("Specify which order plugin to use. Single is the default.");
 
             parser.Setup(o => o.Csr)
                 .As("csr")
-                .WithDescription("Specify which csr plugin to use. RSA is the default.");
+                .WithDescription("Specify which CSR plugin to use. RSA is the default.");
 
             parser.Setup(o => o.Store)
                 .As("store")

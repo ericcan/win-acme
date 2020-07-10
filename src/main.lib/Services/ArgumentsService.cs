@@ -8,8 +8,23 @@ namespace PKISharp.WACS.Services
     {
         private readonly ILogService _log;
         private readonly ArgumentsParser _parser;
+        private MainArguments? _mainArguments;
 
-        public MainArguments MainArguments => _parser.GetArguments<MainArguments>();
+        public MainArguments MainArguments
+        {
+            get
+            {
+                if (_mainArguments == null)
+                {
+                    _mainArguments = _parser.GetArguments<MainArguments>();
+                    if (_mainArguments == null)
+                    {
+                        _mainArguments = new MainArguments();
+                    }
+                }
+                return _mainArguments;
+            }
+        }
 
         public ArgumentsService(ILogService log, ArgumentsParser parser)
         {
@@ -17,7 +32,7 @@ namespace PKISharp.WACS.Services
             _parser = parser;
         }
 
-        public T GetArguments<T>() where T : class, new() => _parser.GetArguments<T>();
+        public T? GetArguments<T>() where T : class, new() => _parser.GetArguments<T>();
 
         public async Task<string?> TryGetArgument(string? providedValue, IInputService input, string what, bool secret = false) => await TryGetArgument(providedValue, input, new[] { what }, secret);
 

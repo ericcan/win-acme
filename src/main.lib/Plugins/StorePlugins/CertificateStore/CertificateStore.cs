@@ -23,12 +23,12 @@ namespace PKISharp.WACS.Plugins.StorePlugins
         private readonly X509Store _store;
         private readonly IIISClient _iisClient;
         private readonly CertificateStoreOptions _options;
-        private readonly UserRoleService _userRoleService;
+        private readonly IUserRoleService _userRoleService;
         private readonly FindPrivateKey _keyFinder;
 
         public CertificateStore(
             ILogService log, IIISClient iisClient,
-            ISettingsService settings, UserRoleService userRoleService,
+            ISettingsService settings, IUserRoleService userRoleService,
             FindPrivateKey keyFinder, CertificateStoreOptions options)
         {
             _log = log;
@@ -48,7 +48,11 @@ namespace PKISharp.WACS.Plugins.StorePlugins
                 // First priority: specified in the parameters
                 _storeName = _options.StoreName;
 
-                // Second priority: specified in the .config 
+                // Second priority: specified in settings.json 
+                if (string.IsNullOrEmpty(_storeName))
+                {
+                    _storeName = _settings.Store.CertificateStore?.DefaultStore;
+                }            
                 if (string.IsNullOrEmpty(_storeName))
                 {
                     _storeName = _settings.Store.DefaultCertificateStore;
@@ -220,7 +224,7 @@ namespace PKISharp.WACS.Plugins.StorePlugins
                 _log.Warning("Error encountered while opening intermediate certificate store");
                 return;
             }
-    
+
             foreach (var cert in chain)
             {
                 try
@@ -304,8 +308,19 @@ namespace PKISharp.WACS.Plugins.StorePlugins
             return possibles.OrderByDescending(x => x.NotBefore).FirstOrDefault();
         }
 
-        bool IPlugin.Disabled => Disabled(_userRoleService);
-        internal static bool Disabled(UserRoleService userRoleService) => !userRoleService.IsAdmin;
+        (bool, string?) IPlugin.Disabled => Disabled(_userRoleService);
+
+        internal static (bool, string?) Disabled(IUserRoleService userRoleService)
+        {
+            if (userRoleService.IsAdmin) 
+            {
+                return (false, null);
+            } 
+            else 
+            {
+                return (true, "Run as administrator to allow certificate store access.");
+            }
+        }
 
         #region IDisposable
 

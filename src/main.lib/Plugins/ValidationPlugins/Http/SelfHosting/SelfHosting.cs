@@ -1,7 +1,9 @@
 ﻿using ACMESharp.Authorizations;
+using PKISharp.WACS.Context;
+using PKISharp.WACS.Plugins.Interfaces;
 using PKISharp.WACS.Services;
 using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -10,12 +12,20 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Http
 {
     internal class SelfHosting : Validation<Http01ChallengeValidationDetails>
     {
-        internal const int DefaultValidationPort = 80;
+        internal const int DefaultHttpValidationPort = 80;
+        internal const int DefaultHttpsValidationPort = 443;
+
+        private readonly object _listenerLock = new object();
         private HttpListener? _listener;
-        private readonly Dictionary<string, string> _files;
+        private readonly ConcurrentDictionary<string, string> _files;
         private readonly SelfHostingOptions _options;
         private readonly ILogService _log;
-        private readonly UserRoleService _userRoleService;
+        private readonly IUserRoleService _userRoleService;
+
+        /// <summary>
+        /// We can answer requests for multiple domains
+        /// </summary>
+        public override ParallelOperations Parallelism => ParallelOperations.Answer | ParallelOperations.Prepare;
 
         private bool HasListener => _listener != null;
         private HttpListener Listener
@@ -31,15 +41,15 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Http
             set => _listener = value;
         }
 
-        public SelfHosting(ILogService log, SelfHostingOptions options, UserRoleService userRoleService)
+        public SelfHosting(ILogService log, SelfHostingOptions options, IUserRoleService userRoleService)
         {
             _log = log;
             _options = options;
-            _files = new Dictionary<string, string>();
+            _files = new ConcurrentDictionary<string, string>();
             _userRoleService = userRoleService;
         }
 
-        public async Task ReceiveRequests()
+        private async Task ReceiveRequests()
         {
             while (Listener.IsListening)
             {
@@ -59,42 +69,76 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Http
             }
         }
 
+        public override Task PrepareChallenge(ValidationContext context, Http01ChallengeValidationDetails challenge)
+        {
+            // Add validation file
+            _files.GetOrAdd("/" + challenge.HttpResourcePath, challenge.HttpResourceValue);
+            return Task.CompletedTask;
+        }
+
+        public override Task Commit()
+        {
+            // Create listener if it doesn't exist yet
+            lock (_listenerLock)
+            {
+                if (_listener == null)
+                {
+                    var protocol = _options.Https == true ? "https" : "http";
+                    var port = _options.Port ?? (_options.Https == true ?
+                        DefaultHttpsValidationPort :
+                        DefaultHttpValidationPort);
+                    var prefix = $"{protocol}://+:{port}/.well-known/acme-challenge/";
+                    try
+                    {
+                        Listener = new HttpListener();
+                        Listener.Prefixes.Add(prefix);
+                        Listener.Start();
+                        Task.Run(ReceiveRequests);
+                    }
+                    catch
+                    {
+                        _log.Error("Unable to activate listener, this may be because of insufficient rights or a non-Microsoft webserver using port {port}", port);
+                        throw;
+                    }
+                }
+            }
+            return Task.CompletedTask;
+        }
+
         public override Task CleanUp()
         {
-            if (HasListener)
+            // Cleanup listener if nobody else has done it yet
+            lock (_listenerLock)
             {
-                try
+                if (HasListener)
                 {
-                    Listener.Stop();
-                    Listener.Close();
-                }
-                catch
-                {
+                    try
+                    {
+                        Listener.Stop();
+                        Listener.Close();
+                    }
+                    finally
+                    {
+                        _listener = null;
+                    }
                 }
             }
+
             return Task.CompletedTask;
         }
 
-        public override Task PrepareChallenge()
+        public override (bool, string?) Disabled => IsDisabled(_userRoleService);
+
+        internal static (bool, string?) IsDisabled(IUserRoleService userRoleService)
         {
-            _files.Add("/" + Challenge.HttpResourcePath, Challenge.HttpResourceValue);
-            try
+            if (!userRoleService.IsAdmin)
             {
-                var prefix = $"http://+:{_options.Port ?? DefaultValidationPort}/.well-known/acme-challenge/";
-                Listener = new HttpListener();
-                Listener.Prefixes.Add(prefix);
-                Listener.Start();
-                Task.Run(ReceiveRequests);
+                return (true, "Run as administrator to allow use of the built-in web listener.");
             }
-            catch
+            else
             {
-                _log.Error("Unable to activate HttpListener, this may be because of insufficient rights or a non-Microsoft webserver using port 80");
-                throw;
+                return (false, null);
             }
-            return Task.CompletedTask;
         }
-
-        public override bool Disabled => IsDisabled(_userRoleService);
-        internal static bool IsDisabled(UserRoleService userRoleService) => !userRoleService.IsAdmin;
     }
 }

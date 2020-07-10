@@ -3,6 +3,7 @@ using PKISharp.WACS.Configuration;
 using PKISharp.WACS.Plugins.InstallationPlugins;
 using PKISharp.WACS.Services;
 using PKISharp.WACS.UnitTests.Mock.Services;
+using System;
 
 namespace PKISharp.WACS.UnitTests.Tests.InstallationPluginTests
 {
@@ -13,7 +14,7 @@ namespace PKISharp.WACS.UnitTests.Tests.InstallationPluginTests
 
         public ArgumentParserTests() => log = new Mock.Services.LogService(true);
 
-        private string TestScript(string parameters)
+        private string? TestScript(string parameters)
         {
             log = new Mock.Services.LogService(true);
             var argParser = new ArgumentsParser(log,
@@ -21,11 +22,12 @@ namespace PKISharp.WACS.UnitTests.Tests.InstallationPluginTests
                 $"--scriptparameters {parameters} --verbose".Split(' '));
             var argService = new ArgumentsService(log, argParser);
             var args = argService.GetArguments<ScriptArguments>();
-            return args.ScriptParameters;
+            return args?.ScriptParameters;
         }
 
         [TestMethod]
-        public void Illegal() => Assert.AreEqual(null, TestScript("hello nonsense"));
+        [ExpectedException(typeof(Exception))]
+        public void Illegal() => TestScript("hello nonsense");
 
         [TestMethod]
         public void SingleParam() => Assert.AreEqual("hello", TestScript("hello"));

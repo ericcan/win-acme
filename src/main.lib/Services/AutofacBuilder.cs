@@ -30,7 +30,7 @@ namespace PKISharp.WACS.Services
             {
                 var realSettings = main.Resolve<ISettingsService>();
                 var realArguments = main.Resolve<IArgumentsService>();
-
+   
                 builder.Register(c => new MainArguments { 
                         BaseUri = fromUri.ToString()
                     }).
@@ -52,9 +52,7 @@ namespace PKISharp.WACS.Services
                     WithParameter(new TypedParameter(typeof(ISettingsService), realSettings)).
                     SingleInstance();
 
-                builder.RegisterType<RenewalStoreDisk>().
-                    WithParameter(new TypedParameter(typeof(IArgumentsService), realArguments)).
-                    WithParameter(new TypedParameter(typeof(ISettingsService), realSettings)).
+                builder.Register((scope) => main.Resolve<IRenewalStore>()).
                     As<IRenewalStore>().
                     SingleInstance();
 
@@ -66,8 +64,10 @@ namespace PKISharp.WACS.Services
                     hive = Registry.LocalMachine;
                     key = hive.OpenSubKey($"Software\\letsencrypt-win-simple");
                 }
+                var log = main.Resolve<ILogService>();
                 if (key != null)
                 {
+                    log.Debug("Loading legacy renewals from registry hive {name}", hive.Name);
                     builder.RegisterType<RegistryLegacyRenewalService>().
                             As<ILegacyRenewalService>().
                             WithParameter(new NamedParameter("hive", hive.Name)).
@@ -75,6 +75,7 @@ namespace PKISharp.WACS.Services
                 }
                 else
                 {
+                    log.Debug("Loading legacy renewals from file");
                     builder.RegisterType<FileLegacyRenewalService>().
                         As<ILegacyRenewalService>().
                         SingleInstance();
@@ -124,6 +125,7 @@ namespace PKISharp.WACS.Services
                 builder.RegisterType(renewal.TargetPluginOptions.Instance).As<ITargetPlugin>().SingleInstance();
                 builder.Register(c => c.Resolve<ITargetPlugin>().Generate().Result).As<Target>().SingleInstance();
                 builder.Register(c => resolver.GetValidationPlugin(main, c.Resolve<Target>()).Result).As<IValidationPluginOptionsFactory>().SingleInstance();
+                builder.Register(c => resolver.GetOrderPlugin(main, c.Resolve<Target>()).Result).As<IOrderPluginOptionsFactory>().SingleInstance();
             });
         }
 
@@ -151,6 +153,10 @@ namespace PKISharp.WACS.Services
                     {
                         builder.RegisterInstance(renewal.CsrPluginOptions).As(renewal.CsrPluginOptions.GetType());
                     }
+                    if (renewal.OrderPluginOptions != null)
+                    {
+                        builder.RegisterInstance(renewal.OrderPluginOptions).As(renewal.OrderPluginOptions.GetType());
+                    }
                     builder.RegisterInstance(renewal.ValidationPluginOptions).As(renewal.ValidationPluginOptions.GetType());
                     builder.RegisterInstance(renewal.TargetPluginOptions).As(renewal.TargetPluginOptions.GetType());
 
@@ -158,13 +164,21 @@ namespace PKISharp.WACS.Services
                     builder.Register(x =>
                     {
                         var plugin = x.Resolve<IPluginService>();
-                        var match = plugin.ValidationPluginFactories(target).FirstOrDefault(vp => vp.OptionsType.PluginId() == renewal.ValidationPluginOptions.Plugin);
+                        var match = plugin.GetFactories<IValidationPluginOptionsFactory>(target).FirstOrDefault(vp => vp.OptionsType.PluginId() == renewal.ValidationPluginOptions.Plugin);
                         return match;
                     }).As<IValidationPluginOptionsFactory>().SingleInstance();
 
                     if (renewal.CsrPluginOptions != null)
                     {
                         builder.RegisterType(renewal.CsrPluginOptions.Instance).As<ICsrPlugin>().SingleInstance();
+                    }
+                    if (renewal.OrderPluginOptions != null)
+                    {
+                        builder.RegisterType(renewal.OrderPluginOptions.Instance).As<IOrderPlugin>().SingleInstance();
+                    } 
+                    else
+                    {
+                        builder.RegisterType<Plugins.OrderPlugins.Single>().As<IOrderPlugin>().SingleInstance();
                     }
                     builder.RegisterType(renewal.ValidationPluginOptions.Instance).As<IValidationPlugin>().SingleInstance();
                     builder.RegisterType(renewal.TargetPluginOptions.Instance).As<ITargetPlugin>().SingleInstance();
@@ -188,19 +202,12 @@ namespace PKISharp.WACS.Services
         /// <param name="target"></param>
         /// <param name="identifier"></param>
         /// <returns></returns>
-        public ILifetimeScope Validation(ILifetimeScope execution, ValidationPluginOptions options, TargetPart target, string identifier)
+        public ILifetimeScope Validation(ILifetimeScope execution, ValidationPluginOptions options)
         {
             return execution.BeginLifetimeScope(builder =>
             {
-                builder.RegisterType<HttpValidationParameters>().
-                    WithParameters(new[] {
-                        new TypedParameter(typeof(string), identifier),
-                        new TypedParameter(typeof(TargetPart), target)
-                    });
+                builder.RegisterType<HttpValidationParameters>();
                 builder.RegisterType(options.Instance).
-                    WithParameters(new[] {
-                        new TypedParameter(typeof(string), identifier),
-                    }).
                     As<IValidationPlugin>().
                     SingleInstance();
             });

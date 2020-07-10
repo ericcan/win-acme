@@ -22,10 +22,11 @@ namespace PKISharp.WACS.Configuration
         public string? Id { get; set; }
         public string? FriendlyName { get; set; }
         public bool Cancel { get; set; }
-
+        public bool Revoke { get; set; }
         public string? Target { get; set; }
         public string? Validation { get; set; }
         public string? ValidationMode { get; set; }
+        public string? Order { get; set; }
         public string? Csr { get; set; }
         public string? Store { get; set; }
         public string? Installation { get; set; }

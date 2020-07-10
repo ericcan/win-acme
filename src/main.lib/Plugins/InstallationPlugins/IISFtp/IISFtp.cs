@@ -15,9 +15,9 @@ namespace PKISharp.WACS.Plugins.InstallationPlugins
         private readonly IIISClient _iisClient;
         private readonly ILogService _log;
         private readonly IISFtpOptions _options;
-        private readonly UserRoleService _userRoleService;
+        private readonly IUserRoleService _userRoleService;
 
-        public IISFtp(IISFtpOptions options, IIISClient iisClient, ILogService log, UserRoleService userRoleService)
+        public IISFtp(IISFtpOptions options, IIISClient iisClient, ILogService log, IUserRoleService userRoleService)
         {
             _iisClient = iisClient;
             _options = options;
@@ -25,7 +25,7 @@ namespace PKISharp.WACS.Plugins.InstallationPlugins
             _userRoleService = userRoleService;
         }
 
-        Task IInstallationPlugin.Install(IEnumerable<IStorePlugin> stores, CertificateInfo newCertificate, CertificateInfo? oldCertificate)
+        Task IInstallationPlugin.Install(Target target, IEnumerable<IStorePlugin> stores, CertificateInfo newCertificate, CertificateInfo? oldCertificate)
         {
             if (!stores.Any(x => x is CertificateStore))
             {
@@ -38,19 +38,20 @@ namespace PKISharp.WACS.Plugins.InstallationPlugins
             return Task.CompletedTask;
         }
 
-        bool IPlugin.Disabled => Disabled(_userRoleService, _iisClient);
+        (bool, string?) IPlugin.Disabled => Disabled(_userRoleService, _iisClient);
 
-        internal static bool Disabled(UserRoleService userRoleService, IIISClient iisClient)
+        internal static (bool, string?) Disabled(IUserRoleService userRoleService, IIISClient iisClient)
         {
-            if (!userRoleService.AllowIIS)
+            var (allow, reason) = userRoleService.AllowIIS;
+            if (!allow)
             {
-                return true;
+                return (true, reason);
             }
             if (!iisClient.HasFtpSites)
             {
-                return true;
+                return (true, "No IIS ftp sites available.");
             }
-            return false;
+            return (false, null);
         }
     }
 }

@@ -4,8 +4,11 @@ using Serilog.Core;
 using Serilog.Events;
 using Serilog.Sinks.SystemConsole.Themes;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace PKISharp.WACS.Services
 {
@@ -15,9 +18,15 @@ namespace PKISharp.WACS.Services
         private readonly Logger? _debugScreenLogger;
         private readonly Logger? _eventLogger;
         private Logger? _diskLogger;
+        private readonly Logger? _notificationLogger;
         private readonly LoggingLevelSwitch _levelSwitch;
+        private readonly List<MemoryEntry> _lines = new List<MemoryEntry>();
+
         public bool Dirty { get; set; }
         private string _configurationPath { get; }
+
+        public IEnumerable<MemoryEntry> Lines => _lines.AsEnumerable();
+        public void Reset() => _lines.Clear();
 
         public LogService()
         {
@@ -32,17 +41,27 @@ namespace PKISharp.WACS.Services
             _levelSwitch = new LoggingLevelSwitch(initialMinimumLevel: initialLevel);
             try
             {
+                var theme = 
+                    RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+                    Environment.OSVersion.Version.Major == 10 ? 
+                    (ConsoleTheme)AnsiConsoleTheme.Code : 
+                    SystemConsoleTheme.Literate;
+
                 _screenLogger = new LoggerConfiguration()
                     .MinimumLevel.ControlledBy(_levelSwitch)
                     .Enrich.FromLogContext()
                     .Filter.ByIncludingOnly(x => { Dirty = true; return true; })
-                    .WriteTo.Console(outputTemplate: " {Message:l}{NewLine}", theme: AnsiConsoleTheme.Code)
+                    .WriteTo.Console(
+                        outputTemplate: " {Message:l}{NewLine}", 
+                        theme: theme)
                     .CreateLogger();
                 _debugScreenLogger = new LoggerConfiguration()
                     .MinimumLevel.ControlledBy(_levelSwitch)
                     .Enrich.FromLogContext()
                     .Filter.ByIncludingOnly(x => { Dirty = true; return true; })
-                    .WriteTo.Console(outputTemplate: " [{Level:u4}] {Message:l}{NewLine}{Exception}", theme: AnsiConsoleTheme.Code)
+                    .WriteTo.Console(
+                        outputTemplate: " [{Level:u4}] {Message:l}{NewLine}{Exception}", 
+                        theme: theme)
                     .CreateLogger();
             }
             catch (Exception ex)
@@ -71,6 +90,13 @@ namespace PKISharp.WACS.Services
             {
                 Warning("Error creating event logger: {ex}", ex.Message);
             }
+
+            _notificationLogger = new LoggerConfiguration()
+                .MinimumLevel.ControlledBy(_levelSwitch)
+                .Enrich.FromLogContext()
+                .WriteTo.Memory(_lines)
+                .CreateLogger();
+
             Log.Debug("The global logger has been configured");
         }
 
@@ -80,6 +106,7 @@ namespace PKISharp.WACS.Services
             {
                 var defaultPath = path.TrimEnd('\\', '/') + "\\log-.txt";
                 var defaultRollingInterval = RollingInterval.Day;
+                var defaultRetainedFileCountLimit = 120;
                 var fileConfig = new ConfigurationBuilder()
                    .AddJsonFile(_configurationPath, true, true)
                    .Build();
@@ -93,6 +120,11 @@ namespace PKISharp.WACS.Services
                         {
                             pathSection.Value = defaultPath;
                         }
+                        var retainedFileCountLimit = writeTo.GetSection("Args:retainedFileCountLimit");
+                        if (string.IsNullOrEmpty(retainedFileCountLimit.Value))
+                        {
+                            retainedFileCountLimit.Value = defaultRetainedFileCountLimit.ToString();
+                        }
                         var rollingInterval = writeTo.GetSection("Args:rollingInterval");
                         if (string.IsNullOrEmpty(rollingInterval.Value))
                         {
@@ -105,7 +137,10 @@ namespace PKISharp.WACS.Services
                     .MinimumLevel.ControlledBy(_levelSwitch)
                     .Enrich.FromLogContext()
                     .Enrich.WithProperty("ProcessId", Process.GetCurrentProcess().Id)
-                    .WriteTo.File(defaultPath, rollingInterval: defaultRollingInterval)
+                    .WriteTo.File(
+                        defaultPath, 
+                        rollingInterval: defaultRollingInterval,
+                        retainedFileCountLimit: defaultRetainedFileCountLimit)
                     .ReadFrom.Configuration(fileConfig, "disk")
                     .CreateLogger();
             }
@@ -121,9 +156,9 @@ namespace PKISharp.WACS.Services
             Verbose("Verbose mode logging enabled");
         }
 
-        public void Verbose(string message, params object?[] items) => Verbose(LogType.Screen, message, items);
+        public void Verbose(string message, params object?[] items) => Verbose(LogType.Screen | LogType.Disk, message, items);
 
-        public void Debug(string message, params object?[] items) => Debug(LogType.Screen, message, items);
+        public void Debug(string message, params object?[] items) => Debug(LogType.Screen | LogType.Disk, message, items);
 
         public void Warning(string message, params object?[] items) => Warning(LogType.All, message, items);
 
@@ -131,7 +166,7 @@ namespace PKISharp.WACS.Services
 
         public void Error(Exception ex, string message, params object?[] items) => Error(LogType.All, ex, message, items);
 
-        public void Information(string message, params object?[] items) => Information(LogType.Screen, message, items);
+        public void Information(string message, params object?[] items) => Information(LogType.Screen | LogType.Disk, message, items);
 
         public void Information(LogType logType, string message, params object?[] items) => _Information(logType, message, items);
 
@@ -161,6 +196,10 @@ namespace PKISharp.WACS.Services
                 {
                     _debugScreenLogger.Write(level, ex, message, items);
                 }
+                if (_notificationLogger != null)
+                {
+                    _notificationLogger.Write(level, ex, message, items);
+                }
             }
             if (_eventLogger != null && type.HasFlag(LogType.Event))
             {
@@ -171,5 +210,6 @@ namespace PKISharp.WACS.Services
                 _diskLogger.Write(level, ex, message, items);
             }
         }
+
     }
 }

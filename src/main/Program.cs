@@ -8,7 +8,6 @@ using PKISharp.WACS.Plugins.Resolvers;
 using PKISharp.WACS.Services;
 using System;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 
 namespace PKISharp.WACS.Host
@@ -102,7 +101,7 @@ namespace PKISharp.WACS.Host
             _ = builder.RegisterInstance(settingsService).As<ISettingsService>();
             _ = builder.RegisterInstance(argumentsService).As<IArgumentsService>();
             _ = builder.RegisterInstance(pluginService).As<IPluginService>();
-            _ = builder.RegisterType<UserRoleService>().SingleInstance();
+            _ = builder.RegisterType<UserRoleService>().As<IUserRoleService>().SingleInstance();
             _ = builder.RegisterType<InputService>().As<IInputService>().SingleInstance();
             _ = builder.RegisterType<ProxyService>().SingleInstance();
             _ = builder.RegisterType<PasswordGenerator>().SingleInstance();
@@ -111,13 +110,14 @@ namespace PKISharp.WACS.Host
             pluginService.Configure(builder);
 
             _ = builder.RegisterType<DomainParseService>().SingleInstance();
-            _ = builder.RegisterType<IISClient>().As<IIISClient>().SingleInstance();
+            _ = builder.RegisterType<IISClient>().As<IIISClient>().InstancePerLifetimeScope();
             _ = builder.RegisterType<IISHelper>().SingleInstance();
             _ = builder.RegisterType<ExceptionHandler>().SingleInstance();
             _ = builder.RegisterType<UnattendedResolver>();
             _ = builder.RegisterType<InteractiveResolver>();
             _ = builder.RegisterType<AutofacBuilder>().As<IAutofacBuilder>().SingleInstance();
             _ = builder.RegisterType<AcmeClient>().SingleInstance();
+            _ = builder.RegisterType<OrderManager>().SingleInstance();
             _ = builder.RegisterType<PemService>().SingleInstance();
             _ = builder.RegisterType<EmailClient>().SingleInstance();
             _ = builder.RegisterType<ScriptClient>().SingleInstance();
@@ -126,7 +126,9 @@ namespace PKISharp.WACS.Host
             _ = builder.RegisterType<TaskSchedulerService>().SingleInstance();
             _ = builder.RegisterType<NotificationService>().SingleInstance();
             _ = builder.RegisterType<RenewalExecutor>().SingleInstance();
+            _ = builder.RegisterType<RenewalValidator>().SingleInstance();
             _ = builder.RegisterType<RenewalManager>().SingleInstance();
+            _ = builder.RegisterType<RenewalCreator>().SingleInstance();
             _ = builder.Register(c => c.Resolve<IArgumentsService>().MainArguments).SingleInstance();
 
             return builder.Build();

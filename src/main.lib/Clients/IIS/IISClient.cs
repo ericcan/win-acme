@@ -18,8 +18,10 @@ namespace PKISharp.WACS.Clients.IIS
 
         public Version Version { get; set; }
         [SuppressMessage("Code Quality", "IDE0069:Disposable fields should be disposed", Justification = "Actually is disposed")]
-        private ServerManager? _ServerManager;
         private readonly ILogService _log;
+        private ServerManager? _serverManager;
+        private List<IISSiteWrapper>? _webSites = null;
+        private List<IISSiteWrapper>? _ftpSites = null;
 
         public IISClient(ILogService log)
         {
@@ -34,14 +36,23 @@ namespace PKISharp.WACS.Clients.IIS
         {
             get
             {
-                if (_ServerManager == null)
+                if (_serverManager == null)
                 {
                     if (Version.Major > 0)
                     {
-                        _ServerManager = new ServerManager();
+                        try
+                        {
+                            _serverManager = new ServerManager();
+                        } 
+                        catch
+                        {
+                            _log.Error($"Unable to create an IIS ServerManager");
+                        }
+                        _webSites = null;
+                        _ftpSites = null;
                     }
                 }
-                return _ServerManager;
+                return _serverManager;
             }
         }
 
@@ -53,11 +64,11 @@ namespace PKISharp.WACS.Clients.IIS
         /// </summary>
         private void Commit()
         {
-            if (_ServerManager != null)
+            if (_serverManager != null)
             {
                 try
                 {
-                    _ServerManager.CommitChanges();
+                    _serverManager.CommitChanges();
                 }
                 catch
                 {
@@ -73,18 +84,29 @@ namespace PKISharp.WACS.Clients.IIS
 
         public void Refresh()
         {
-            if (_ServerManager != null)
+            _webSites = null;
+            _ftpSites = null;
+            if (_serverManager != null)
             {
-                _ServerManager.Dispose();
-                _ServerManager = null;
+                _serverManager.Dispose();
+                _serverManager = null;
             }
         }
 
         #region _ Basic retrieval _
 
+        IEnumerable<IIISSite> IIISClient.WebSites => WebSites;
+
+        IEnumerable<IIISSite> IIISClient.FtpSites => FtpSites;
+
+        IIISSite IIISClient.GetWebSite(long id) => GetWebSite(id);
+
+        IIISSite IIISClient.GetFtpSite(long id) => GetFtpSite(id);
+
         public bool HasWebSites => Version.Major > 0 && WebSites.Any();
 
-        IEnumerable<IIISSite> IIISClient.WebSites => WebSites;
+        public bool HasFtpSites => Version >= new Version(7, 5) && FtpSites.Any();
+
         public IEnumerable<IISSiteWrapper> WebSites
         {
             get
@@ -93,28 +115,53 @@ namespace PKISharp.WACS.Clients.IIS
                 {
                     return new List<IISSiteWrapper>();
                 }
-                return ServerManager.Sites.AsEnumerable().
-                    Where(s => s.Bindings.Any(sb => sb.Protocol == "http" || sb.Protocol == "https")).
-                    Where(s =>
-                    {
-                        try
-                        {
-                            return s.State == ObjectState.Started;
-                        }
-                        catch
-                        {
-                            // Prevent COMExceptions such as misconfigured
-                            // application pools from crashing the whole 
-                            _log.Warning("Unable to determine state for Site {id}", s.Id);
-                            return false;
-                        }
-                    }).
-                    OrderBy(s => s.Name).
-                    Select(x => new IISSiteWrapper(x));
+                if (_webSites == null)
+                {
+                   _webSites = ServerManager.Sites.AsEnumerable().
+                       Where(s => s.Bindings.Any(sb => sb.Protocol == "http" || sb.Protocol == "https")).
+                       Where(s =>
+                       {
+
+                           try
+                           {
+                               return s.State == ObjectState.Started;
+                           }
+                           catch
+                           {
+                                // Prevent COMExceptions such as misconfigured
+                                // application pools from crashing the whole 
+                                _log.Warning("Unable to determine state for Site {id}", s.Id);
+                               return false;
+                           }
+                       }).
+                       OrderBy(s => s.Name).
+                       Select(x => new IISSiteWrapper(x)).
+                       ToList();
+                }
+                return _webSites;
             }
         }
 
-        IIISSite IIISClient.GetWebSite(long id) => GetWebSite(id);
+        public IEnumerable<IISSiteWrapper> FtpSites
+        {
+            get
+            {
+                if (ServerManager == null)
+                {
+                    return new List<IISSiteWrapper>();
+                }
+                if (_ftpSites == null)
+                {
+                    _ftpSites = ServerManager.Sites.AsEnumerable().
+                        Where(s => s.Bindings.Any(sb => sb.Protocol == "ftp")).
+                        OrderBy(s => s.Name).
+                        Select(x => new IISSiteWrapper(x)).
+                        ToList();
+                }
+                return _ftpSites;
+            }
+        }
+
         public IISSiteWrapper GetWebSite(long id)
         {
             foreach (var site in WebSites)
@@ -127,25 +174,6 @@ namespace PKISharp.WACS.Clients.IIS
             throw new Exception($"Unable to find IIS SiteId #{id}");
         }
 
-        public bool HasFtpSites => Version >= new Version(7, 5) && FtpSites.Any();
-
-        IEnumerable<IIISSite> IIISClient.FtpSites => FtpSites;
-        public IEnumerable<IISSiteWrapper> FtpSites
-        {
-            get
-            {
-                if (ServerManager == null)
-                {
-                    return new List<IISSiteWrapper>();
-                }
-                return ServerManager.Sites.AsEnumerable().
-                    Where(s => s.Bindings.Any(sb => sb.Protocol == "ftp")).
-                    OrderBy(s => s.Name).
-                    Select(x => new IISSiteWrapper(x));
-            }
-        }
-
-        IIISSite IIISClient.GetFtpSite(long id) => GetFtpSite(id);
         public IISSiteWrapper GetFtpSite(long id)
         {
             foreach (var site in FtpSites)
@@ -180,10 +208,10 @@ namespace PKISharp.WACS.Clients.IIS
         public void AddBinding(IISSiteWrapper site, BindingOptions options)
         {
             var newBinding = site.Site.Bindings.CreateElement("binding");
-            newBinding.Protocol = "https";
             newBinding.BindingInformation = options.Binding;
             newBinding.CertificateStoreName = options.Store;
             newBinding.CertificateHash = options.Thumbprint;
+            newBinding.Protocol = "https";
             if (options.Flags > 0)
             {
                 newBinding.SetAttributeValue("sslFlags", options.Flags);
@@ -202,10 +230,10 @@ namespace PKISharp.WACS.Clients.IIS
                 "certificateHash"
             };
             var replacement = site.Site.Bindings.CreateElement("binding");
-            replacement.Protocol = existingBinding.Protocol;
             replacement.BindingInformation = existingBinding.BindingInformation;
             replacement.CertificateStoreName = options.Store;
             replacement.CertificateHash = options.Thumbprint;
+            replacement.Protocol = existingBinding.Protocol;
             foreach (var attr in existingBinding.Binding.Attributes)
             {
                 try
@@ -246,43 +274,74 @@ namespace PKISharp.WACS.Clients.IIS
             var newThumbprint = newCertificate?.Certificate?.Thumbprint;
             var newStore = newCertificate?.StoreInfo[typeof(CertificateStore)].Path;
             var updated = 0;
+
+            if (ServerManager == null)
+            {
+                return;
+            }
+
+            var sslElement = ServerManager.SiteDefaults.
+                GetChildElement("ftpServer").
+                GetChildElement("security").
+                GetChildElement("ssl");
+            if (RequireUpdate(sslElement, 0, FtpSiteId, oldThumbprint, newThumbprint, newStore))
+            {
+                sslElement.SetAttributeValue("serverCertHash", newThumbprint);
+                sslElement.SetAttributeValue("serverCertStoreName", newStore);
+                _log.Information(LogType.All, "Updating default ftp site setting");
+                updated += 1;
+            } 
+            else
+            {
+                _log.Debug("No update needed for default ftp site settings");
+            }
+
             foreach (var ftpSite in ftpSites)
             {
-                var sslElement = ftpSite.Site.GetChildElement("ftpServer").
+                sslElement = ftpSite.Site.
+                    GetChildElement("ftpServer").
                     GetChildElement("security").
                     GetChildElement("ssl");
 
-                var currentThumbprint = sslElement.GetAttributeValue("serverCertHash").ToString();
-                var currentStore = sslElement.GetAttributeValue("serverCertStoreName").ToString();
-                var update = false;
-                if (ftpSite.Site.Id == FtpSiteId)
-                {
-                    update = 
-                        !string.Equals(currentThumbprint, newThumbprint, StringComparison.CurrentCultureIgnoreCase) ||
-                        !string.Equals(currentStore, newStore, StringComparison.CurrentCultureIgnoreCase);
-                    if (!update)
-                    {
-                        _log.Information(LogType.All, "No updated need for ftp site {name}", ftpSite.Site.Name);
-                    }
-                } 
-                else
-                {
-                    update = string.Equals(currentThumbprint, oldThumbprint, StringComparison.CurrentCultureIgnoreCase);
-                }
-
-                if (update)
+                if (RequireUpdate(sslElement, ftpSite.Id, FtpSiteId, oldThumbprint, newThumbprint, newStore))
                 {
                     sslElement.SetAttributeValue("serverCertHash", newThumbprint);
                     sslElement.SetAttributeValue("serverCertStoreName", newStore);
-                    _log.Information(LogType.All, "Updating existing ftp site {name}", ftpSite.Site.Name);
+                    _log.Information(LogType.All, "Updating ftp site {name}", ftpSite.Site.Name);
                     updated += 1;
                 }
+                else
+                {
+                    _log.Debug("No update needed for ftp site {name}", ftpSite.Site.Name);
+                }
             }
+
             if (updated > 0)
             {
                 _log.Information("Committing {count} {type} site changes to IIS", updated, "ftp");
                 Commit();
             }
+        }
+
+        private bool RequireUpdate(ConfigurationElement element, 
+            long currentSiteId, long installSiteId, 
+            string? oldThumbprint, string? newThumbprint,
+            string? newStore)
+        {
+            var currentThumbprint = element.GetAttributeValue("serverCertHash").ToString();
+            var currentStore = element.GetAttributeValue("serverCertStoreName").ToString();
+            bool update;
+            if (currentSiteId == installSiteId)
+            {
+                update =
+                    !string.Equals(currentThumbprint, newThumbprint, StringComparison.CurrentCultureIgnoreCase) ||
+                    !string.Equals(currentStore, newStore, StringComparison.CurrentCultureIgnoreCase);
+            }
+            else
+            {
+                update = string.Equals(currentThumbprint, oldThumbprint, StringComparison.CurrentCultureIgnoreCase);
+            }
+            return update;
         }
 
         #endregion
@@ -316,9 +375,9 @@ namespace PKISharp.WACS.Clients.IIS
             {
                 if (disposing)
                 {
-                    if (_ServerManager != null)
+                    if (_serverManager != null)
                     {
-                        _ServerManager.Dispose();
+                        _serverManager.Dispose();
                     }
                 }
                 disposedValue = true;
