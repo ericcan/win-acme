@@ -99,7 +99,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                         {
                             server.reqReceived = false;
                             _log.Information("Checking NS record setup for {identifier}", identifier);
-                            var TXTResponse = await _dnsClient.GetDefaultClient(0).GetTextRecordValues(identifier,0);
+                            var TXTResponse = await _dnsClient.GetDefaultClient(0).GetTxtRecords(identifier);
                             if (TXTResponse.Contains(testTXT))
                             {
                                 _log.Information("Successful lookup for {identifier}", identifier);

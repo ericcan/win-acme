@@ -35,7 +35,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             await CreateRecord(record);
             selfDnsServer.Listen();
 
-            PreValidate();
+            await PreValidate(record);
         }
         public override async Task<bool> CreateRecord(DnsValidationRecord record)
         {
@@ -51,18 +51,18 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         //    selfDnsServer.Dispose();
         //    await base.CleanUp();
         //}
-        protected new bool PreValidate()
+        protected async Task<bool> PreValidate(DnsValidationRecord record)
         {
             try
             {
                 LookupClientWrapper dnsClient;
 
-                dnsClient = _dnsClientProvider.GetDefaultClient(0);
+                dnsClient = _dnsClient.GetDefaultClient(0);
 
-                var tokens =  dnsClient.GetTextRecordValues(Challenge.DnsRecordName,0).Result;
-                if (tokens.Contains(Challenge.DnsRecordValue))
+                var tokens = await dnsClient.GetTxtRecords(record.Authority.Domain);
+                if (tokens.Contains(record.Value))
                 {
-                    _log.Information("Preliminary validation succeeded: {ExpectedTxtRecord} found in {TxtRecords}", Challenge.DnsRecordValue, String.Join(", ", tokens));
+                    _log.Information("Preliminary validation succeeded: {ExpectedTxtRecord} found in {TxtRecords}", record.Value, String.Join(", ", tokens));
                     return true;
                 }
                 else if (!tokens.Any())
@@ -71,7 +71,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
                 }
                 else
                 {
-                    _log.Warning("Preliminary validation failed: {ExpectedTxtRecord} not found in {TxtRecords}", Challenge.DnsRecordValue, String.Join(", ", tokens));
+                    _log.Warning("Preliminary validation failed: {ExpectedTxtRecord} not found in {TxtRecords}", record.Value, String.Join(", ", tokens));
                 }
             }
             catch
