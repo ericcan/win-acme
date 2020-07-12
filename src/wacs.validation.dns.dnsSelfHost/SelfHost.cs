@@ -1,5 +1,6 @@
 ﻿using ACMESharp.Authorizations;
 using PKISharp.WACS.Clients.DNS;
+using PKISharp.WACS.Plugins.Interfaces;
 using PKISharp.WACS.Services;
 using PKISharp.WACS.Context;
 using DNS.Server.Acme;
@@ -21,21 +22,14 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             SelfDNSOptions options) :
             base(dnsClient, log, settings)
         {
-        }
-        public override async Task PrepareChallenge(ValidationContext context, Dns01ChallengeValidationDetails challenge)
-        {
-            //setup for temporary DNS Server
             selfDnsServer = new DnsServerAcme(_log);
-            _log.Information("Get Authority called");
-            var authority = await _dnsClient.GetAuthority(
-                challenge.DnsRecordName,
-                followCnames: false);
-            var record = new DnsValidationRecord(context, authority, challenge.DnsRecordValue);
-            await CreateRecord(record);
-            selfDnsServer.Listen();
+        }        
 
-            await PreValidate(record);
+        public override async Task SaveChanges()
+        {
+            selfDnsServer.Listen();
         }
+        public override ParallelOperations Parallelism => ParallelOperations.Answer | ParallelOperations.Prepare;
         public override async Task<bool> CreateRecord(DnsValidationRecord record)
         {
            selfDnsServer.AddRecord(record.Authority.Domain, record.Value);
