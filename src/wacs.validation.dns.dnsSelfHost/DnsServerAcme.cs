@@ -3,6 +3,7 @@ using DNS.Client;
 using PKISharp.WACS.Services;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DNS.Protocol;
@@ -101,7 +102,7 @@ namespace DNS.Server.Acme
                 entries.Add(new TextResourceRecord(new Domain(domain), CharacterString.FromString($"{token}"), ttl));
             }
 
-            public Task<IResponse> Resolve(IRequest request)
+            public Task<IResponse> Resolve(IRequest request, CancellationToken cancellationToken = default(CancellationToken))
             {
                 IResponse response = Response.FromRequest(request);
 
