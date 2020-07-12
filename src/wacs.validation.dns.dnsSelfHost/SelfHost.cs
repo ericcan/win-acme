@@ -32,17 +32,17 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         public override ParallelOperations Parallelism => ParallelOperations.Answer | ParallelOperations.Prepare;
         public override async Task<bool> CreateRecord(DnsValidationRecord record)
         {
-           selfDnsServer.AddRecord(record.Authority.Domain, record.Value);
+           await Task.Run(()=> selfDnsServer.AddRecord(record.Authority.Domain, record.Value));
             _log.Information("Validation TXT {token} added to DNS Server {answerUri}", record.Value, record.Authority.Domain);
             return true;
         }
-        public override async Task DeleteRecord(DnsValidationRecord record)
-        {
-        }
-        public override async Task Finalize()
+        public override Task DeleteRecord(DnsValidationRecord record) => Task.CompletedTask;
+
+        public override Task Finalize()
         {
             _log.Information("Disposing DNS Server");
-            selfDnsServer.Dispose();    
+            selfDnsServer.Dispose();
+            return Task.CompletedTask;
         }
         //public override async Task CleanUp()
         //{
