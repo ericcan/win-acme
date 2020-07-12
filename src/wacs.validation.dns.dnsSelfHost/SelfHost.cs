@@ -18,8 +18,7 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             LookupClientProvider dnsClient,
             ILogService log, 
             ISettingsService settings,
-            SelfDNSOptions options, string
-            identifier) :
+            SelfDNSOptions options) :
             base(dnsClient, log, settings)
         {
         }
@@ -27,11 +26,11 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         {
             //setup for temporary DNS Server
             selfDnsServer = new DnsServerAcme(_log);
+            _log.Information("Get Authority called");
             var authority = await _dnsClient.GetAuthority(
                 challenge.DnsRecordName,
-                followCnames: _settings.Validation.AllowDnsSubstitution);
+                followCnames: false);
             var record = new DnsValidationRecord(context, authority, challenge.DnsRecordValue);
-
             await CreateRecord(record);
             selfDnsServer.Listen();
 
@@ -44,7 +43,8 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
             return true;
         }
         public override async Task DeleteRecord(DnsValidationRecord record)
-        {          
+        {
+            selfDnsServer.Dispose();
         }
         //public override async Task CleanUp()
         //{
