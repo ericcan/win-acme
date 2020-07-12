@@ -44,7 +44,11 @@ namespace PKISharp.WACS.Plugins.ValidationPlugins.Dns
         }
         public override async Task DeleteRecord(DnsValidationRecord record)
         {
-            selfDnsServer.Dispose();
+        }
+        public override async Task Finalize()
+        {
+            _log.Information("Disposing DNS Server");
+            selfDnsServer.Dispose();    
         }
         //public override async Task CleanUp()
         //{
